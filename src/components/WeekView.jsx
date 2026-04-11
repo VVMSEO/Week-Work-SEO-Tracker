@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { useTimeLogsByWeek, addLog } from '../hooks/useTimeLogs';
-import { getMonday, getPreviousMonday, getNextMonday, getWeekRange, formatMinutes } from '../utils/timeCalc';
+import { useSettings } from '../hooks/useSettings';
+import { getMonday, getPreviousMonday, getNextMonday, getWeekRange, formatMinutes, calcPlannedMinutes } from '../utils/timeCalc';
+import { distributeProjects } from '../services/aiService';
+import { Wand2, Loader2 } from 'lucide-react';
 import AddSessionModal from './AddSessionModal';
 
 const DAYS = [
@@ -16,11 +19,78 @@ const DAYS = [
 export default function WeekView({ projects }) {
   const [weekStart, setWeekStart] = useState(getMonday(new Date().toISOString().split('T')[0]));
   const { logs, loading } = useTimeLogsByWeek(weekStart);
+  const { settings } = useSettings();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState('');
+  const [isPlanning, setIsPlanning] = useState(false);
 
   const handlePrevWeek = () => setWeekStart(getPreviousMonday(weekStart));
   const handleNextWeek = () => setWeekStart(getNextMonday(weekStart));
+
+  const generatePlan = async () => {
+    if (!settings?.hourlyRate) {
+      alert('Сначала укажите часовую ставку в Настройках.');
+      return;
+    }
+
+    const activeProjects = projects.filter(p => p.active);
+    if (activeProjects.length === 0) {
+      alert('Нет активных проектов для планирования.');
+      return;
+    }
+
+    if (logs.length > 0) {
+      if (!window.confirm('На этой неделе уже есть задачи. Вы уверены, что хотите добавить новые черновики?')) {
+        return;
+      }
+    }
+
+    setIsPlanning(true);
+
+    const projectsToPlan = activeProjects.map(p => ({
+      id: p.id,
+      name: p.name,
+      minutes: calcPlannedMinutes(p.budget, p.overhead, settings.hourlyRate)
+    })).filter(p => p.minutes > 0);
+
+    const aiResult = await distributeProjects(projectsToPlan);
+    
+    let schedule = [];
+    if (aiResult && aiResult.schedule) {
+      schedule = aiResult.schedule;
+    } else {
+      alert('Не удалось получить ответ от ИИ. Используем стандартное распределение.');
+      let currentDayIdx = 1;
+      schedule = projectsToPlan.map(p => {
+        const item = { projectId: p.id, day: currentDayIdx };
+        currentDayIdx = currentDayIdx > 4 ? 1 : currentDayIdx + 1;
+        return item;
+      });
+    }
+
+    for (const item of schedule) {
+      const project = projectsToPlan.find(p => p.id === item.projectId);
+      if (!project) continue;
+
+      const d = new Date(weekStart);
+      d.setDate(d.getDate() + (item.day - 1));
+      const dateStr = d.toISOString().split('T')[0];
+
+      await addLog({
+        projectId: project.id,
+        projectName: project.name,
+        date: dateStr,
+        weekStart: weekStart,
+        month: dateStr.slice(0, 7),
+        minutes: project.minutes,
+        task: 'План на неделю',
+        status: 'Не начата',
+        result: ''
+      });
+    }
+    
+    setIsPlanning(false);
+  };
 
   const handleAddSession = (dayId) => {
     const d = new Date(weekStart);
@@ -38,7 +108,9 @@ export default function WeekView({ projects }) {
   const getStatusColor = (status) => {
     switch(status) {
       case 'Сделана': return 'bg-green-100 text-green-800';
-      case 'В работе': return 'bg-yellow-100 text-yellow-800';
+      case 'В работе': return 'bg-blue-100 text-blue-800';
+      case 'Отложена': return 'bg-orange-100 text-orange-800';
+      case 'Ждём клиента': return 'bg-purple-100 text-purple-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -53,6 +125,14 @@ export default function WeekView({ projects }) {
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-slate-800">Неделя</h2>
         <div className="flex items-center space-x-4">
+          <button 
+            onClick={generatePlan}
+            disabled={isPlanning}
+            className="flex items-center space-x-2 px-3 py-1.5 text-sm bg-blue-50 text-blue-600 rounded hover:bg-blue-100 font-medium border border-blue-200 disabled:opacity-50"
+          >
+            {isPlanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+            <span>{isPlanning ? 'Планируем...' : 'Умный план'}</span>
+          </button>
           <button onClick={handlePrevWeek} className="p-2 hover:bg-slate-100 rounded">←</button>
           <span className="font-medium text-slate-700">Неделя: [{getWeekRange(weekStart)}]</span>
           <button onClick={handleNextWeek} className="p-2 hover:bg-slate-100 rounded">→</button>

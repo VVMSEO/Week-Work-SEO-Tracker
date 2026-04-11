@@ -118,6 +118,8 @@ export default function AddSessionModal({ dayDate, projects, onSave, onClose }) 
               <option value="Не начата">Не начата</option>
               <option value="В работе">В работе</option>
               <option value="Сделана">Сделана</option>
+              <option value="Отложена">Отложена</option>
+              <option value="Ждём клиента">Ждём клиента</option>
             </select>
           </div>
 

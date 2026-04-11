@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useTimeLogsByWeek } from '../hooks/useTimeLogs';
 import { getMonday, getPreviousMonday, getNextMonday, getWeekRange } from '../utils/timeCalc';
+import { improveText } from '../services/aiService';
+import { Wand2, Loader2 } from 'lucide-react';
 
 export default function ClientReport({ projects }) {
   const [weekStart, setWeekStart] = useState(getMonday(new Date().toISOString().split('T')[0]));
   const { logs, loading } = useTimeLogsByWeek(weekStart);
   const [reportData, setReportData] = useState({});
+  const [improvingFields, setImprovingFields] = useState({});
 
   const handlePrevWeek = () => setWeekStart(getPreviousMonday(weekStart));
   const handleNextWeek = () => setWeekStart(getNextMonday(weekStart));
@@ -50,6 +53,16 @@ export default function ClientReport({ projects }) {
         [field]: value
       }
     }));
+  };
+
+  const handleImprove = async (projectId, field, text) => {
+    if (!text.trim()) return;
+    const fieldKey = `${projectId}_${field}`;
+    
+    setImprovingFields(prev => ({ ...prev, [fieldKey]: true }));
+    const improved = await improveText(text);
+    handleTextChange(projectId, field, improved);
+    setImprovingFields(prev => ({ ...prev, [fieldKey]: false }));
   };
 
   const handleCopy = () => {
@@ -114,22 +127,46 @@ export default function ClientReport({ projects }) {
                         </ul>
                       </td>
                       <td className="px-6 py-4">
-                        <textarea 
-                          className="w-full border border-slate-300 rounded p-2 text-sm"
-                          rows="4"
-                          value={data.next}
-                          onChange={e => handleTextChange(pid, 'next', e.target.value)}
-                          placeholder="Планы на следующую неделю..."
-                        />
+                        <div className="relative">
+                          <textarea 
+                            className="w-full border border-slate-300 rounded p-2 text-sm pr-8"
+                            rows="4"
+                            value={data.next}
+                            onChange={e => handleTextChange(pid, 'next', e.target.value)}
+                            placeholder="Планы на следующую неделю..."
+                          />
+                          {data.next && (
+                            <button
+                              onClick={() => handleImprove(pid, 'next', data.next)}
+                              disabled={improvingFields[`${pid}_next`]}
+                              className="absolute bottom-2 right-2 p-1.5 bg-purple-100 text-purple-600 rounded hover:bg-purple-200 disabled:opacity-50"
+                              title="Улучшить текст с помощью ИИ"
+                            >
+                              {improvingFields[`${pid}_next`] ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+                            </button>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4">
-                        <textarea 
-                          className="w-full border border-slate-300 rounded p-2 text-sm"
-                          rows="4"
-                          value={data.fromClient}
-                          onChange={e => handleTextChange(pid, 'fromClient', e.target.value)}
-                          placeholder="Что нужно от клиента..."
-                        />
+                        <div className="relative">
+                          <textarea 
+                            className="w-full border border-slate-300 rounded p-2 text-sm pr-8"
+                            rows="4"
+                            value={data.fromClient}
+                            onChange={e => handleTextChange(pid, 'fromClient', e.target.value)}
+                            placeholder="Что нужно от клиента..."
+                          />
+                          {data.fromClient && (
+                            <button
+                              onClick={() => handleImprove(pid, 'fromClient', data.fromClient)}
+                              disabled={improvingFields[`${pid}_fromClient`]}
+                              className="absolute bottom-2 right-2 p-1.5 bg-purple-100 text-purple-600 rounded hover:bg-purple-200 disabled:opacity-50"
+                              title="Улучшить текст с помощью ИИ"
+                            >
+                              {improvingFields[`${pid}_fromClient`] ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

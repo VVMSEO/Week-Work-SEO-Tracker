@@ -8,7 +8,8 @@ export function calcPlannedMinutes(budget, overhead, hourlyRate) {
 
 export function formatMinutes(min) {
   if (!min || isNaN(min)) return "0 ч 00 мин";
-  return `${Math.floor(min / 60)} ч ${String(min % 60).padStart(2, '0')} мин`;
+  const roundedMin = Math.round(min);
+  return `${Math.floor(roundedMin / 60)} ч ${String(roundedMin % 60).padStart(2, '0')} мин`;
 }
 
 export function getMonday(dateStr) {
