@@ -1,0 +1,61 @@
+{
+  "entities": {
+    "Project": {
+      "title": "Project",
+      "description": "A client project",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "budget": { "type": "number" },
+        "overhead": { "type": "number" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string" }
+      },
+      "required": ["name", "budget", "overhead", "active", "createdAt", "userId"]
+    },
+    "Settings": {
+      "title": "Settings",
+      "description": "User settings",
+      "type": "object",
+      "properties": {
+        "hourlyRate": { "type": "number" },
+        "userId": { "type": "string" }
+      },
+      "required": ["hourlyRate", "userId"]
+    },
+    "TimeLog": {
+      "title": "TimeLog",
+      "description": "A logged session",
+      "type": "object",
+      "properties": {
+        "projectId": { "type": "string" },
+        "projectName": { "type": "string" },
+        "date": { "type": "string" },
+        "weekStart": { "type": "string" },
+        "month": { "type": "string" },
+        "minutes": { "type": "number" },
+        "task": { "type": "string" },
+        "status": { "type": "string", "enum": ["Не начата", "В работе", "Сделана"] },
+        "result": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["projectId", "projectName", "date", "weekStart", "month", "minutes", "task", "status", "userId", "createdAt"]
+    }
+  },
+  "firestore": {
+    "projects/{projectId}": {
+      "schema": { "$ref": "#/entities/Project" },
+      "description": "Projects collection"
+    },
+    "settings/{settingId}": {
+      "schema": { "$ref": "#/entities/Settings" },
+      "description": "Settings collection"
+    },
+    "timeLogs/{timeLogId}": {
+      "schema": { "$ref": "#/entities/TimeLog" },
+      "description": "Time logs collection"
+    }
+  }
+}
