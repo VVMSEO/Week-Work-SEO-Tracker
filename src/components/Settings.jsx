@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { calcPlannedMinutes, formatMinutes } from '../utils/timeCalc';
 
 export default function Settings({ settings, updateSettings, projects, addProject, updateProject }) {
   const [hourlyRate, setHourlyRate] = useState(settings?.hourlyRate || 0);
@@ -129,6 +130,12 @@ export default function Settings({ settings, updateSettings, projects, addProjec
               required
             />
           </div>
+          <div className="w-32 pb-2">
+            <div className="text-xs text-slate-500 mb-1">План в неделю:</div>
+            <div className="text-sm font-medium text-slate-800">
+              {formatMinutes(calcPlannedMinutes(Number(newProjectBudget) || 0, Number(newProjectOverhead) || 1, hourlyRate))}
+            </div>
+          </div>
           <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 h-[38px]">
             Добавить
           </button>
@@ -141,6 +148,7 @@ export default function Settings({ settings, updateSettings, projects, addProjec
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Название</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Бюджет</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Коэфф.</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">План / нед</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Статус</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase">Действия</th>
               </tr>
@@ -169,6 +177,9 @@ export default function Settings({ settings, updateSettings, projects, addProjec
                           className="w-16 border border-slate-300 rounded p-1 text-sm"
                         />
                       </td>
+                      <td className="px-4 py-3 text-sm font-medium text-blue-600">
+                        {formatMinutes(calcPlannedMinutes(Number(editBudget) || 0, Number(editOverhead) || 1, hourlyRate))}
+                      </td>
                       <td className="px-4 py-3">
                         <span className="text-sm text-slate-500">{project.active ? 'Активен' : 'В архиве'}</span>
                       </td>
@@ -181,6 +192,9 @@ export default function Settings({ settings, updateSettings, projects, addProjec
                     <>
                       <td className="px-4 py-3 text-slate-600">{project.budget}</td>
                       <td className="px-4 py-3 text-slate-600">{project.overhead}</td>
+                      <td className="px-4 py-3 text-slate-600 font-medium">
+                        {formatMinutes(calcPlannedMinutes(project.budget, project.overhead, hourlyRate))}
+                      </td>
                       <td className="px-4 py-3">
                         <button 
                           onClick={() => toggleActive(project)}
@@ -198,7 +212,7 @@ export default function Settings({ settings, updateSettings, projects, addProjec
               ))}
               {filteredProjects.length === 0 && (
                 <tr>
-                  <td colSpan="5" className="px-4 py-4 text-center text-slate-500">Нет проектов</td>
+                  <td colSpan="6" className="px-4 py-4 text-center text-slate-500">Нет проектов</td>
                 </tr>
               )}
             </tbody>
