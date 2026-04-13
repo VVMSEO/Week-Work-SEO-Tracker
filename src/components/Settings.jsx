@@ -63,6 +63,16 @@ export default function Settings({ settings, updateSettings, projects, addProjec
 
   const filteredProjects = showArchived ? projects : projects.filter(p => p.active);
 
+  const totalPlannedMinutes = projects.filter(p => p.active).reduce((sum, project) => {
+    let budget = project.budget;
+    let overhead = project.overhead;
+    if (editingId === project.id) {
+      budget = Number(editBudget) || 0;
+      overhead = Number(editOverhead) || 1;
+    }
+    return sum + calcPlannedMinutes(budget, overhead, hourlyRate);
+  }, 0);
+
   return (
     <div className="max-w-4xl mx-auto p-4">
       <h2 className="text-2xl font-bold text-slate-800 mb-6">Настройки</h2>
@@ -216,6 +226,17 @@ export default function Settings({ settings, updateSettings, projects, addProjec
                 </tr>
               )}
             </tbody>
+            <tfoot className="bg-slate-100 border-t border-slate-200">
+              <tr>
+                <td colSpan="3" className="px-4 py-3 text-right text-sm font-bold text-slate-800">
+                  Итого план в неделю (активные):
+                </td>
+                <td className="px-4 py-3 text-sm font-bold text-blue-700">
+                  {formatMinutes(totalPlannedMinutes)}
+                </td>
+                <td colSpan="2"></td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </div>
