@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { useTimeLogsByWeek, addLog } from '../hooks/useTimeLogs';
+import { useTimeLogsByWeek, addLog, deleteLog } from '../hooks/useTimeLogs';
 import { useSettings } from '../hooks/useSettings';
 import { getMonday, getPreviousMonday, getNextMonday, getWeekRange, formatMinutes, calcPlannedMinutes } from '../utils/timeCalc';
 import { distributeProjects } from '../services/aiService';
-import { Wand2, Loader2 } from 'lucide-react';
+import { Wand2, Loader2, Trash2 } from 'lucide-react';
 import AddSessionModal from './AddSessionModal';
 
 const DAYS = [
@@ -26,6 +26,19 @@ export default function WeekView({ projects }) {
 
   const handlePrevWeek = () => setWeekStart(getPreviousMonday(weekStart));
   const handleNextWeek = () => setWeekStart(getNextMonday(weekStart));
+
+  const handleClearDrafts = async () => {
+    const drafts = logs.filter(l => l.status === 'Не начата' && l.task === 'План на неделю');
+    if (drafts.length === 0) {
+      alert('Нет черновиков для удаления.');
+      return;
+    }
+    if (window.confirm(`Вы уверены, что хотите удалить ${drafts.length} черновиков?`)) {
+      for (const draft of drafts) {
+        await deleteLog(draft.id);
+      }
+    }
+  };
 
   const generatePlan = async () => {
     if (!settings?.hourlyRate) {
@@ -68,6 +81,13 @@ export default function WeekView({ projects }) {
       });
     }
 
+    // Подсчитываем, сколько раз каждый проект встречается в расписании,
+    // чтобы разделить его недельное время поровну между этими днями
+    const projectCounts = {};
+    schedule.forEach(item => {
+      projectCounts[item.projectId] = (projectCounts[item.projectId] || 0) + 1;
+    });
+
     for (const item of schedule) {
       const project = projectsToPlan.find(p => p.id === item.projectId);
       if (!project) continue;
@@ -76,13 +96,16 @@ export default function WeekView({ projects }) {
       d.setDate(d.getDate() + (item.day - 1));
       const dateStr = d.toISOString().split('T')[0];
 
+      // Делим общее время проекта на количество дней, в которые он запланирован
+      const sessionMinutes = Math.round(project.minutes / projectCounts[item.projectId]);
+
       await addLog({
         projectId: project.id,
         projectName: project.name,
         date: dateStr,
         weekStart: weekStart,
         month: dateStr.slice(0, 7),
-        minutes: project.minutes,
+        minutes: sessionMinutes,
         task: 'План на неделю',
         status: 'Не начата',
         result: ''
@@ -125,6 +148,12 @@ export default function WeekView({ projects }) {
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-slate-800">Неделя</h2>
         <div className="flex items-center space-x-4">
+          <button 
+            onClick={handleClearDrafts}
+            className="px-3 py-1.5 text-sm bg-red-50 text-red-600 rounded hover:bg-red-100 font-medium border border-red-200"
+          >
+            Очистить черновики
+          </button>
           <button 
             onClick={generatePlan}
             disabled={isPlanning}
@@ -178,9 +207,22 @@ export default function WeekView({ projects }) {
                       <div className="flex-1">
                         <div className="text-slate-700 mb-1">{log.task}</div>
                         {log.result && <div className="text-sm text-slate-500 mb-2">Результат: {log.result}</div>}
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(log.status)}`}>
-                          {log.status}
-                        </span>
+                        <div className="flex items-center justify-between">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(log.status)}`}>
+                            {log.status}
+                          </span>
+                          <button
+                            onClick={() => {
+                              if (window.confirm('Удалить эту запись?')) {
+                                deleteLog(log.id);
+                              }
+                            }}
+                            className="p-1 text-slate-400 hover:text-red-600 rounded"
+                            title="Удалить запись"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}

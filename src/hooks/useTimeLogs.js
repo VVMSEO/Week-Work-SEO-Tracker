@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 
 export function useTimeLogsByWeek(weekStart) {
@@ -82,6 +82,5 @@ export const updateLog = async (id, data) => {
 
 export const deleteLog = async (id) => {
   if (!auth.currentUser) return;
-  // Soft delete via status update
-  await updateDoc(doc(db, 'timeLogs', id), { status: 'Удалена' });
+  await deleteDoc(doc(db, 'timeLogs', id));
 };
