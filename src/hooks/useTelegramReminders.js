@@ -15,6 +15,25 @@ export function useTelegramReminders(user, settings, activeTimer) {
       const tgToken = settings.tgToken;
       const tgChatId = settings.tgChatId;
 
+      // 0. Таймер истек
+      if (activeTimer && activeTimer.plannedMinutes > 0) {
+        const elapsedMs = Date.now() - activeTimer.startTime;
+        const elapsedMinutes = Math.floor(elapsedMs / 60000);
+        const totalMinutes = activeTimer.initialWorkedMinutes + elapsedMinutes;
+
+        if (totalMinutes >= activeTimer.plannedMinutes) {
+          const expiredKey = `tg_expired_${activeTimer.logId}_${activeTimer.startTime}`;
+          if (!localStorage.getItem(expiredKey)) {
+            await sendTelegramMessage(
+              tgToken, 
+              tgChatId, 
+              `⏰ Время вышло!\n\nЗапланированное время (${activeTimer.plannedMinutes} мин) на задачу:\n"${activeTimer.task}"\nпо проекту ${activeTimer.projectName} истекло.`
+            );
+            localStorage.setItem(expiredKey, 'true');
+          }
+        }
+      }
+
       // 1. Утреннее напоминание (в 10:00)
       const morningKey = `tg_morning_${today}`;
       if (hours === 10 && !localStorage.getItem(morningKey)) {
@@ -58,7 +77,7 @@ export function useTelegramReminders(user, settings, activeTimer) {
       }
     };
 
-    const interval = setInterval(checkReminders, 60 * 1000);
+    const interval = setInterval(checkReminders, 5000);
     checkReminders();
 
     return () => clearInterval(interval);
