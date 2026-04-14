@@ -26,16 +26,17 @@ const LiveTimerDisplay = ({ activeTimer }) => {
   }, []);
 
   const elapsedMs = Math.max(0, now - activeTimer.startTime);
-  const elapsedMinutes = Math.floor(elapsedMs / 60000);
-  const seconds = Math.floor((elapsedMs % 60000) / 1000);
-  const totalMinutes = (activeTimer.initialWorkedMinutes || 0) + elapsedMinutes;
+  const totalMs = (activeTimer.initialWorkedMinutes || 0) * 60000 + elapsedMs;
 
-  const h = Math.floor(totalMinutes / 60);
-  const m = Math.floor(totalMinutes % 60);
+  const h = Math.floor(totalMs / 3600000);
+  const m = Math.floor((totalMs % 3600000) / 60000);
+  const s = Math.floor((totalMs % 60000) / 1000);
 
   return (
-    <div className="text-blue-600 font-medium mt-0.5">
-      Факт: {h} ч {m.toString().padStart(2, '0')} мин <span className="text-red-500 ml-1">{seconds.toString().padStart(2, '0')} сек</span>
+    <div className="text-blue-600 font-medium mt-0.5 flex items-center">
+      Факт: <span className="font-mono ml-1 bg-blue-50 px-1.5 py-0.5 rounded text-blue-700 border border-blue-100">
+        {h.toString().padStart(2, '0')}:{m.toString().padStart(2, '0')}:{s.toString().padStart(2, '0')}
+      </span>
       <span className="ml-2 text-red-500 text-xs font-medium animate-pulse">⏱️ Идет отсчет...</span>
     </div>
   );
@@ -178,10 +179,26 @@ export default function WeekView({ projects }) {
     }
   };
 
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    if (!activeTimer) return;
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, [activeTimer]);
+
   if (loading) return <div className="p-4 text-slate-600">Загрузка...</div>;
 
+  const getLiveElapsedMinutes = (logId) => {
+    if (activeTimer?.logId === logId) {
+      const elapsedMs = Math.max(0, now - activeTimer.startTime);
+      return Math.floor(elapsedMs / 60000);
+    }
+    return 0;
+  };
+
   const totalPlanMinutes = logs.reduce((sum, log) => sum + log.minutes, 0);
-  const totalFactMinutes = logs.reduce((sum, log) => sum + (log.workedMinutes || 0), 0);
+  const totalFactMinutes = logs.reduce((sum, log) => sum + (log.workedMinutes || 0) + getLiveElapsedMinutes(log.id), 0);
   const completedTasks = logs.filter(l => l.status === 'Сделана').length;
 
   return (
@@ -224,7 +241,7 @@ export default function WeekView({ projects }) {
           
           const dayLogs = logs.filter(l => l.date === dateStr);
           const dayTotalPlan = dayLogs.reduce((sum, l) => sum + l.minutes, 0);
-          const dayTotalFact = dayLogs.reduce((sum, l) => sum + (l.workedMinutes || 0), 0);
+          const dayTotalFact = dayLogs.reduce((sum, l) => sum + (l.workedMinutes || 0) + getLiveElapsedMinutes(l.id), 0);
 
           return (
             <div key={day.id} className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
