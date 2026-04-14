@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTimeLogsByWeek, addLog, deleteLog, updateLog } from '../hooks/useTimeLogs';
 import { useSettings } from '../hooks/useSettings';
 import { useTimer } from '../context/TimerContext';
@@ -16,6 +16,30 @@ const DAYS = [
   { id: 6, name: 'Суббота' },
   { id: 0, name: 'Воскресенье' }
 ];
+
+const LiveTimerDisplay = ({ activeTimer }) => {
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const elapsedMs = Math.max(0, now - activeTimer.startTime);
+  const elapsedMinutes = Math.floor(elapsedMs / 60000);
+  const seconds = Math.floor((elapsedMs % 60000) / 1000);
+  const totalMinutes = (activeTimer.initialWorkedMinutes || 0) + elapsedMinutes;
+
+  const h = Math.floor(totalMinutes / 60);
+  const m = Math.floor(totalMinutes % 60);
+
+  return (
+    <div className="text-blue-600 font-medium mt-0.5">
+      Факт: {h} ч {m.toString().padStart(2, '0')} мин <span className="text-red-500 ml-1">{seconds.toString().padStart(2, '0')} сек</span>
+      <span className="ml-2 text-red-500 text-xs font-medium animate-pulse">⏱️ Идет отсчет...</span>
+    </div>
+  );
+};
 
 export default function WeekView({ projects }) {
   const [weekStart, setWeekStart] = useState(getMonday(new Date().toISOString().split('T')[0]));
@@ -225,10 +249,13 @@ export default function WeekView({ projects }) {
                           <div className="font-medium text-slate-800">{log.projectName}</div>
                           <div className="text-sm text-slate-500 mt-1">
                             <div>План: {formatMinutes(log.minutes)}</div>
-                            <div className="text-blue-600 font-medium mt-0.5">
-                              Факт: {formatMinutes(log.workedMinutes || 0)}
-                              {isTimerActive && <span className="ml-2 text-red-500 text-xs font-medium animate-pulse">⏱️ Идет отсчет...</span>}
-                            </div>
+                            {isTimerActive ? (
+                              <LiveTimerDisplay activeTimer={activeTimer} />
+                            ) : (
+                              <div className="text-blue-600 font-medium mt-0.5">
+                                Факт: {formatMinutes(log.workedMinutes || 0)}
+                              </div>
+                            )}
                           </div>
                         </div>
                         <div className="flex-1">
