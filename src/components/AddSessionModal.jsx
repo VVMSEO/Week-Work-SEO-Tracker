@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { getMonday } from '../utils/timeCalc';
 
-export default function AddSessionModal({ dayDate, projects, onSave, onClose }) {
-  const [projectId, setProjectId] = useState('');
-  const [date, setDate] = useState(dayDate || new Date().toISOString().split('T')[0]);
-  const [hours, setHours] = useState(0);
-  const [minutes, setMinutes] = useState(0);
-  const [task, setTask] = useState('');
-  const [status, setStatus] = useState('В работе');
-  const [result, setResult] = useState('');
+export default function AddSessionModal({ dayDate, projects, onSave, onClose, initialData = null }) {
+  const [projectId, setProjectId] = useState(initialData?.projectId || '');
+  const [date, setDate] = useState(initialData?.date || dayDate || new Date().toISOString().split('T')[0]);
+  const [hours, setHours] = useState(initialData ? Math.floor(initialData.minutes / 60) : 0);
+  const [minutes, setMinutes] = useState(initialData ? initialData.minutes % 60 : 0);
+  const [task, setTask] = useState(initialData?.task || '');
+  const [status, setStatus] = useState(initialData?.status || 'В работе');
+  const [result, setResult] = useState(initialData?.result || '');
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -28,7 +28,7 @@ export default function AddSessionModal({ dayDate, projects, onSave, onClose }) 
 
     const project = projects.find(p => p.id === projectId);
     
-    onSave({
+    const dataToSave = {
       projectId,
       projectName: project.name,
       date,
@@ -38,13 +38,19 @@ export default function AddSessionModal({ dayDate, projects, onSave, onClose }) 
       task,
       status,
       result
-    });
+    };
+
+    if (initialData?.id) {
+      dataToSave.id = initialData.id;
+    }
+
+    onSave(dataToSave);
   };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-        <h2 className="text-xl font-bold text-slate-800 mb-4">Добавить сеанс</h2>
+        <h2 className="text-xl font-bold text-slate-800 mb-4">{initialData ? 'Редактировать сеанс' : 'Добавить сеанс'}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Проект</label>

@@ -3,6 +3,8 @@ import { auth, signInWithGoogle, logOut } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useProjects } from './hooks/useProjects';
 import { useSettings } from './hooks/useSettings';
+import { useReminders } from './hooks/useReminders';
+import { Bell, BellOff } from 'lucide-react';
 
 import WeekView from './components/WeekView';
 import ProjectsTable from './components/ProjectsTable';
@@ -14,6 +16,9 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('Неделя');
+  const [notificationsEnabled, setNotificationsEnabled] = useState(
+    'Notification' in window && Notification.permission === 'granted'
+  );
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -25,6 +30,22 @@ export default function App() {
 
   const { projects, addProject, updateProject } = useProjects();
   const { settings, updateSettings } = useSettings();
+  
+  useReminders(user);
+
+  const requestNotificationPermission = async () => {
+    if (!('Notification' in window)) {
+      alert('Ваш браузер не поддерживает уведомления.');
+      return;
+    }
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+      setNotificationsEnabled(true);
+      alert('Уведомления включены! Мы напомним вам о невыполненных задачах на сегодня.');
+    } else {
+      alert('Вы запретили уведомления. Вы можете включить их в настройках браузера.');
+    }
+  };
 
   if (authLoading) {
     return <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-600">Загрузка...</div>;
@@ -84,6 +105,13 @@ export default function App() {
               </nav>
             </div>
             <div className="flex items-center space-x-4">
+              <button
+                onClick={requestNotificationPermission}
+                className={`p-2 rounded-full transition-colors ${notificationsEnabled ? 'text-blue-600 bg-blue-50 hover:bg-blue-100' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}
+                title={notificationsEnabled ? 'Уведомления включены' : 'Включить уведомления о задачах'}
+              >
+                {notificationsEnabled ? <Bell className="w-5 h-5" /> : <BellOff className="w-5 h-5" />}
+              </button>
               <div className="flex items-center space-x-2">
                 {user.photoURL && <img src={user.photoURL} alt="Avatar" className="w-8 h-8 rounded-full" referrerPolicy="no-referrer" />}
                 <span className="text-sm font-medium text-slate-700 hidden sm:block">{user.displayName}</span>

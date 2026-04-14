@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { useTimeLogsByWeek, addLog, deleteLog } from '../hooks/useTimeLogs';
+import { useTimeLogsByWeek, addLog, deleteLog, updateLog } from '../hooks/useTimeLogs';
 import { useSettings } from '../hooks/useSettings';
 import { getMonday, getPreviousMonday, getNextMonday, getWeekRange, formatMinutes, calcPlannedMinutes } from '../utils/timeCalc';
 import { distributeProjects } from '../services/aiService';
-import { Wand2, Loader2, Trash2 } from 'lucide-react';
+import { Wand2, Loader2, Trash2, Edit2 } from 'lucide-react';
 import AddSessionModal from './AddSessionModal';
 
 const DAYS = [
@@ -23,6 +23,7 @@ export default function WeekView({ projects }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState('');
   const [isPlanning, setIsPlanning] = useState(false);
+  const [editingLog, setEditingLog] = useState(null);
 
   const handlePrevWeek = () => setWeekStart(getPreviousMonday(weekStart));
   const handleNextWeek = () => setWeekStart(getNextMonday(weekStart));
@@ -120,12 +121,25 @@ export default function WeekView({ projects }) {
     const offset = dayId === 0 ? 6 : dayId - 1;
     d.setDate(d.getDate() + offset);
     setSelectedDate(d.toISOString().split('T')[0]);
+    setEditingLog(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEditSession = (log) => {
+    setEditingLog(log);
+    setSelectedDate(log.date);
     setIsModalOpen(true);
   };
 
   const handleSaveSession = async (data) => {
-    await addLog(data);
+    if (data.id) {
+      const { id, ...updateData } = data;
+      await updateLog(id, updateData);
+    } else {
+      await addLog(data);
+    }
     setIsModalOpen(false);
+    setEditingLog(null);
   };
 
   const getStatusColor = (status) => {
@@ -211,17 +225,26 @@ export default function WeekView({ projects }) {
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(log.status)}`}>
                             {log.status}
                           </span>
-                          <button
-                            onClick={() => {
-                              if (window.confirm('Удалить эту запись?')) {
-                                deleteLog(log.id);
-                              }
-                            }}
-                            className="p-1 text-slate-400 hover:text-red-600 rounded"
-                            title="Удалить запись"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex space-x-1">
+                            <button
+                              onClick={() => handleEditSession(log)}
+                              className="p-1 text-slate-400 hover:text-blue-600 rounded"
+                              title="Редактировать запись"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (window.confirm('Удалить эту запись?')) {
+                                  deleteLog(log.id);
+                                }
+                              }}
+                              className="p-1 text-slate-400 hover:text-red-600 rounded"
+                              title="Удалить запись"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -253,7 +276,11 @@ export default function WeekView({ projects }) {
           dayDate={selectedDate}
           projects={projects.filter(p => p.active)}
           onSave={handleSaveSession}
-          onClose={() => setIsModalOpen(false)}
+          onClose={() => {
+            setIsModalOpen(false);
+            setEditingLog(null);
+          }}
+          initialData={editingLog}
         />
       )}
     </div>
