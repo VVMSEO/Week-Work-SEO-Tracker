@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useTimeLogsByWeek, addLog, deleteLog, updateLog } from '../hooks/useTimeLogs';
 import { useSettings } from '../hooks/useSettings';
+import { useTimer } from '../context/TimerContext';
 import { getMonday, getPreviousMonday, getNextMonday, getWeekRange, formatMinutes, calcPlannedMinutes } from '../utils/timeCalc';
 import { distributeProjects } from '../services/aiService';
-import { Wand2, Loader2, Trash2, Edit2 } from 'lucide-react';
+import { Wand2, Loader2, Trash2, Edit2, Play, Square } from 'lucide-react';
 import AddSessionModal from './AddSessionModal';
 
 const DAYS = [
@@ -20,6 +21,7 @@ export default function WeekView({ projects }) {
   const [weekStart, setWeekStart] = useState(getMonday(new Date().toISOString().split('T')[0]));
   const { logs, loading } = useTimeLogsByWeek(weekStart);
   const { settings } = useSettings();
+  const { activeTimer, startTimer, stopTimer } = useTimer();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState('');
   const [isPlanning, setIsPlanning] = useState(false);
@@ -212,43 +214,68 @@ export default function WeekView({ projects }) {
               
               {dayLogs.length > 0 && (
                 <div className="divide-y divide-slate-100">
-                  {dayLogs.map(log => (
-                    <div key={log.id} className="p-4 flex flex-col sm:flex-row sm:items-start gap-4">
-                      <div className="w-full sm:w-48 shrink-0">
-                        <div className="font-medium text-slate-800">{log.projectName}</div>
-                        <div className="text-sm text-slate-500">{formatMinutes(log.minutes)}</div>
-                      </div>
-                      <div className="flex-1">
-                        <div className="text-slate-700 mb-1">{log.task}</div>
-                        {log.result && <div className="text-sm text-slate-500 mb-2">Результат: {log.result}</div>}
-                        <div className="flex items-center justify-between">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(log.status)}`}>
-                            {log.status}
-                          </span>
-                          <div className="flex space-x-1">
-                            <button
-                              onClick={() => handleEditSession(log)}
-                              className="p-1 text-slate-400 hover:text-blue-600 rounded"
-                              title="Редактировать запись"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => {
-                                if (window.confirm('Удалить эту запись?')) {
-                                  deleteLog(log.id);
-                                }
-                              }}
-                              className="p-1 text-slate-400 hover:text-red-600 rounded"
-                              title="Удалить запись"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                  {dayLogs.map(log => {
+                    const isTimerActive = activeTimer?.logId === log.id;
+                    
+                    return (
+                      <div key={log.id} className={`p-4 flex flex-col sm:flex-row sm:items-start gap-4 transition-colors ${isTimerActive ? 'bg-red-50/50' : ''}`}>
+                        <div className="w-full sm:w-48 shrink-0">
+                          <div className="font-medium text-slate-800">{log.projectName}</div>
+                          <div className="text-sm text-slate-500">
+                            {formatMinutes(log.minutes)}
+                            {isTimerActive && <span className="ml-2 text-red-500 text-xs font-medium animate-pulse">⏱️ Идет отсчет...</span>}
+                          </div>
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-slate-700 mb-1">{log.task}</div>
+                          {log.result && <div className="text-sm text-slate-500 mb-2">Результат: {log.result}</div>}
+                          <div className="flex items-center justify-between">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(log.status)}`}>
+                              {log.status}
+                            </span>
+                            <div className="flex space-x-1">
+                              {isTimerActive ? (
+                                <button
+                                  onClick={stopTimer}
+                                  className="p-1 text-red-600 hover:bg-red-100 rounded"
+                                  title="Остановить таймер"
+                                >
+                                  <Square className="w-4 h-4" />
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => startTimer(log)}
+                                  className="p-1 text-green-600 hover:bg-green-100 rounded"
+                                  title="Запустить таймер"
+                                >
+                                  <Play className="w-4 h-4" />
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleEditSession(log)}
+                                className="p-1 text-slate-400 hover:text-blue-600 rounded"
+                                title="Редактировать запись"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (window.confirm('Удалить эту запись?')) {
+                                    if (activeTimer?.logId === log.id) stopTimer();
+                                    deleteLog(log.id);
+                                  }
+                                }}
+                                className="p-1 text-slate-400 hover:text-red-600 rounded"
+                                title="Удалить запись"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
               

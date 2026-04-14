@@ -3,6 +3,8 @@ import { calcPlannedMinutes, formatMinutes } from '../utils/timeCalc';
 
 export default function Settings({ settings, updateSettings, projects, addProject, updateProject }) {
   const [hourlyRate, setHourlyRate] = useState(settings?.hourlyRate || 0);
+  const [tgToken, setTgToken] = useState(settings?.tgToken || '');
+  const [tgChatId, setTgChatId] = useState(settings?.tgChatId || '');
   const [showArchived, setShowArchived] = useState(false);
   
   // New project form
@@ -18,12 +20,20 @@ export default function Settings({ settings, updateSettings, projects, addProjec
   useEffect(() => {
     if (settings) {
       setHourlyRate(settings.hourlyRate || 0);
+      setTgToken(settings.tgToken || '');
+      setTgChatId(settings.tgChatId || '');
     }
   }, [settings]);
 
   const handleRateBlur = () => {
     if (hourlyRate !== settings?.hourlyRate) {
       updateSettings({ hourlyRate: Number(hourlyRate) });
+    }
+  };
+
+  const handleTgBlur = () => {
+    if (tgToken !== settings?.tgToken || tgChatId !== settings?.tgChatId) {
+      updateSettings({ tgToken, tgChatId });
     }
   };
 
@@ -79,7 +89,7 @@ export default function Settings({ settings, updateSettings, projects, addProjec
 
       <div className="bg-white p-6 rounded-lg shadow mb-8">
         <h3 className="text-lg font-semibold text-slate-800 mb-4">Общие настройки</h3>
-        <div className="max-w-xs">
+        <div className="max-w-xs mb-6">
           <label className="block text-sm font-medium text-slate-700 mb-1">
             Часовая ставка (₽)
           </label>
@@ -92,6 +102,35 @@ export default function Settings({ settings, updateSettings, projects, addProjec
           />
           <p className="text-xs text-slate-500 mt-1">Сохраняется автоматически</p>
         </div>
+
+        <h3 className="text-lg font-semibold text-slate-800 mb-4 border-t border-slate-100 pt-6">Уведомления в Telegram</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Токен бота (BotFather)</label>
+            <input 
+              type="text" 
+              value={tgToken}
+              onChange={e => setTgToken(e.target.value)}
+              onBlur={handleTgBlur}
+              placeholder="123456789:ABCdefGHIjklMNOpqrSTUvwxYZ"
+              className="w-full border border-slate-300 rounded p-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Ваш Chat ID</label>
+            <input 
+              type="text" 
+              value={tgChatId}
+              onChange={e => setTgChatId(e.target.value)}
+              onBlur={handleTgBlur}
+              placeholder="123456789"
+              className="w-full border border-slate-300 rounded p-2 text-sm"
+            />
+          </div>
+        </div>
+        <p className="text-xs text-slate-500 mt-2">
+          Создайте бота через @BotFather, скопируйте токен. Узнать свой Chat ID можно через бота @userinfobot.
+        </p>
       </div>
 
       <div className="bg-white p-6 rounded-lg shadow">
