@@ -156,7 +156,8 @@ export default function WeekView({ projects }) {
 
   if (loading) return <div className="p-4 text-slate-600">Загрузка...</div>;
 
-  const totalMinutes = logs.reduce((sum, log) => sum + log.minutes, 0);
+  const totalPlanMinutes = logs.reduce((sum, log) => sum + log.minutes, 0);
+  const totalFactMinutes = logs.reduce((sum, log) => sum + (log.workedMinutes || 0), 0);
   const completedTasks = logs.filter(l => l.status === 'Сделана').length;
 
   return (
@@ -198,7 +199,8 @@ export default function WeekView({ projects }) {
           const dateStr = dayDate.toISOString().split('T')[0];
           
           const dayLogs = logs.filter(l => l.date === dateStr);
-          const dayTotal = dayLogs.reduce((sum, l) => sum + l.minutes, 0);
+          const dayTotalPlan = dayLogs.reduce((sum, l) => sum + l.minutes, 0);
+          const dayTotalFact = dayLogs.reduce((sum, l) => sum + (l.workedMinutes || 0), 0);
 
           return (
             <div key={day.id} className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
@@ -221,9 +223,12 @@ export default function WeekView({ projects }) {
                       <div key={log.id} className={`p-4 flex flex-col sm:flex-row sm:items-start gap-4 transition-colors ${isTimerActive ? 'bg-red-50/50' : ''}`}>
                         <div className="w-full sm:w-48 shrink-0">
                           <div className="font-medium text-slate-800">{log.projectName}</div>
-                          <div className="text-sm text-slate-500">
-                            {formatMinutes(log.minutes)}
-                            {isTimerActive && <span className="ml-2 text-red-500 text-xs font-medium animate-pulse">⏱️ Идет отсчет...</span>}
+                          <div className="text-sm text-slate-500 mt-1">
+                            <div>План: {formatMinutes(log.minutes)}</div>
+                            <div className="text-blue-600 font-medium mt-0.5">
+                              Факт: {formatMinutes(log.workedMinutes || 0)}
+                              {isTimerActive && <span className="ml-2 text-red-500 text-xs font-medium animate-pulse">⏱️ Идет отсчет...</span>}
+                            </div>
                           </div>
                         </div>
                         <div className="flex-1">
@@ -280,7 +285,7 @@ export default function WeekView({ projects }) {
               )}
               
               <div className="bg-slate-50 px-4 py-2 border-t border-slate-200 text-right text-sm text-slate-600 font-medium">
-                Итого за день: {formatMinutes(dayTotal)}
+                Итого за день: План {formatMinutes(dayTotalPlan)} / Факт {formatMinutes(dayTotalFact)}
               </div>
             </div>
           );
@@ -294,7 +299,9 @@ export default function WeekView({ projects }) {
           <span className="opacity-80">Выполнено:</span> <span className="font-bold ml-1">{completedTasks}</span>
         </div>
         <div className="text-lg">
-          <span className="opacity-80">Итого:</span> <span className="font-bold ml-2">{formatMinutes(totalMinutes)}</span>
+          <span className="opacity-80">План:</span> <span className="font-bold ml-2">{formatMinutes(totalPlanMinutes)}</span>
+          <span className="mx-4 opacity-40">|</span>
+          <span className="opacity-80">Факт:</span> <span className="font-bold ml-2 text-blue-300">{formatMinutes(totalFactMinutes)}</span>
         </div>
       </div>
 

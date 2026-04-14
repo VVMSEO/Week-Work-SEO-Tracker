@@ -21,7 +21,7 @@ export const TimerProvider = ({ children }) => {
     setActiveTimer({ 
       logId: log.id, 
       startTime: Date.now(), 
-      initialMinutes: log.minutes || 0, 
+      initialWorkedMinutes: log.workedMinutes || 0, 
       projectName: log.projectName, 
       task: log.task 
     });
@@ -31,10 +31,10 @@ export const TimerProvider = ({ children }) => {
     if (!activeTimer) return;
     const elapsedMs = Date.now() - activeTimer.startTime;
     const elapsedMinutes = Math.round(elapsedMs / 60000);
-    const newTotal = activeTimer.initialMinutes + elapsedMinutes;
+    const newWorked = activeTimer.initialWorkedMinutes + elapsedMinutes;
     
     try {
-      await updateLog(activeTimer.logId, { minutes: newTotal, status: 'В работе' });
+      await updateLog(activeTimer.logId, { workedMinutes: newWorked, status: 'В работе' });
     } catch (e) {
       console.error("Failed to update log on timer stop", e);
     }

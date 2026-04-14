@@ -37,8 +37,9 @@ export default function ProjectsTable({ projects, settings }) {
               const plannedWeekMin = calcPlannedMinutes(project.budget, project.overhead, hourlyRate);
               const plannedMonthMin = plannedWeekMin * 4.33;
               
-              const factWeekMin = weekLogs.filter(l => l.projectId === project.id).reduce((sum, l) => sum + l.minutes, 0);
-              const factMonthMin = monthLogs.filter(l => l.projectId === project.id).reduce((sum, l) => sum + l.minutes, 0);
+              const getFact = l => l.workedMinutes !== undefined ? l.workedMinutes : (l.status === 'Сделана' || l.status === 'В работе' ? l.minutes : 0);
+              const factWeekMin = weekLogs.filter(l => l.projectId === project.id).reduce((sum, l) => sum + getFact(l), 0);
+              const factMonthMin = monthLogs.filter(l => l.projectId === project.id).reduce((sum, l) => sum + getFact(l), 0);
               
               const diffWeek = plannedWeekMin - factWeekMin;
               const diffMonth = plannedMonthMin - factMonthMin;

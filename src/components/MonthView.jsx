@@ -21,6 +21,8 @@ export default function MonthView({ projects, settings }) {
   const daysInMonth = lastDay.getDate();
   const startingDayOfWeek = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1; // 0 = Mon, 6 = Sun
 
+  const getFact = l => l.workedMinutes !== undefined ? l.workedMinutes : (l.status === 'Сделана' || l.status === 'В работе' ? l.minutes : 0);
+
   const calendarCells = [];
   for (let i = 0; i < startingDayOfWeek; i++) {
     calendarCells.push(null);
@@ -28,7 +30,7 @@ export default function MonthView({ projects, settings }) {
   for (let i = 1; i <= daysInMonth; i++) {
     const dateStr = `${year}-${String(monthIdx + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
     const dayLogs = logs.filter(l => l.date === dateStr);
-    const minutes = dayLogs.reduce((sum, l) => sum + l.minutes, 0);
+    const minutes = dayLogs.reduce((sum, l) => sum + getFact(l), 0);
     calendarCells.push({ day: i, dateStr, minutes });
   }
 
@@ -39,8 +41,8 @@ export default function MonthView({ projects, settings }) {
     return 'bg-blue-700 text-white';
   };
 
-  const totalMinutes = logs.reduce((sum, l) => sum + l.minutes, 0);
-  const activeDays = new Set(logs.map(l => l.date)).size;
+  const totalMinutes = logs.reduce((sum, l) => sum + getFact(l), 0);
+  const activeDays = new Set(logs.filter(l => getFact(l) > 0).map(l => l.date)).size;
   const avgMinutes = activeDays > 0 ? totalMinutes / activeDays : 0;
 
   return (
@@ -105,7 +107,7 @@ export default function MonthView({ projects, settings }) {
           <tbody className="bg-white divide-y divide-slate-200">
             {projects.filter(p => p.active || logs.some(l => l.projectId === p.id)).map(project => {
               const projectLogs = logs.filter(l => l.projectId === project.id);
-              const factMin = projectLogs.reduce((sum, l) => sum + l.minutes, 0);
+              const factMin = projectLogs.reduce((sum, l) => sum + getFact(l), 0);
               const plannedMin = calcPlannedMinutes(project.budget, project.overhead, settings?.hourlyRate || 0) * 4.33;
               
               if (factMin === 0 && !project.active) return null;

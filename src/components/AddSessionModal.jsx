@@ -6,6 +6,8 @@ export default function AddSessionModal({ dayDate, projects, onSave, onClose, in
   const [date, setDate] = useState(initialData?.date || dayDate || new Date().toISOString().split('T')[0]);
   const [hours, setHours] = useState(initialData ? Math.floor(initialData.minutes / 60) : 0);
   const [minutes, setMinutes] = useState(initialData ? initialData.minutes % 60 : 0);
+  const [workedHours, setWorkedHours] = useState(initialData ? Math.floor((initialData.workedMinutes || 0) / 60) : 0);
+  const [workedMins, setWorkedMins] = useState(initialData ? (initialData.workedMinutes || 0) % 60 : 0);
   const [task, setTask] = useState(initialData?.task || '');
   const [status, setStatus] = useState(initialData?.status || 'В работе');
   const [result, setResult] = useState(initialData?.result || '');
@@ -17,8 +19,10 @@ export default function AddSessionModal({ dayDate, projects, onSave, onClose, in
       return;
     }
     const totalMinutes = parseInt(hours || 0) * 60 + parseInt(minutes || 0);
-    if (totalMinutes <= 0) {
-      alert('Укажите время');
+    const totalWorkedMinutes = parseInt(workedHours || 0) * 60 + parseInt(workedMins || 0);
+    
+    if (totalMinutes <= 0 && totalWorkedMinutes <= 0) {
+      alert('Укажите время (план или факт)');
       return;
     }
     if (!task.trim()) {
@@ -35,6 +39,7 @@ export default function AddSessionModal({ dayDate, projects, onSave, onClose, in
       weekStart: getMonday(date),
       month: date.slice(0, 7),
       minutes: totalMinutes,
+      workedMinutes: totalWorkedMinutes,
       task,
       status,
       result
@@ -80,7 +85,7 @@ export default function AddSessionModal({ dayDate, projects, onSave, onClose, in
 
           <div className="flex space-x-4">
             <div className="flex-1">
-              <label className="block text-sm font-medium text-slate-700 mb-1">Часы</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">План (часы)</label>
               <input 
                 type="number" 
                 min="0" 
@@ -91,7 +96,7 @@ export default function AddSessionModal({ dayDate, projects, onSave, onClose, in
               />
             </div>
             <div className="flex-1">
-              <label className="block text-sm font-medium text-slate-700 mb-1">Минуты</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">План (минуты)</label>
               <input 
                 type="number" 
                 min="0" 
@@ -99,6 +104,31 @@ export default function AddSessionModal({ dayDate, projects, onSave, onClose, in
                 value={minutes} 
                 onChange={e => setMinutes(e.target.value)}
                 className="w-full border border-slate-300 rounded p-2"
+              />
+            </div>
+          </div>
+
+          <div className="flex space-x-4">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-blue-700 mb-1">Факт (часы)</label>
+              <input 
+                type="number" 
+                min="0" 
+                max="23" 
+                value={workedHours} 
+                onChange={e => setWorkedHours(e.target.value)}
+                className="w-full border border-blue-200 rounded p-2 bg-blue-50"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-blue-700 mb-1">Факт (минуты)</label>
+              <input 
+                type="number" 
+                min="0" 
+                max="59" 
+                value={workedMins} 
+                onChange={e => setWorkedMins(e.target.value)}
+                className="w-full border border-blue-200 rounded p-2 bg-blue-50"
               />
             </div>
           </div>
