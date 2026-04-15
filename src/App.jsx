@@ -7,12 +7,14 @@ import { useReminders } from './hooks/useReminders';
 import { useTelegramReminders } from './hooks/useTelegramReminders';
 import { TimerProvider, useTimer } from './context/TimerContext';
 import { Bell, BellOff } from 'lucide-react';
+import { Toaster } from 'sonner';
 
 import WeekView from './components/WeekView';
 import ProjectsTable from './components/ProjectsTable';
 import MonthView from './components/MonthView';
 import ClientReport from './components/ClientReport';
 import Settings from './components/Settings';
+import Categories from './components/Categories';
 
 function TelegramNotifier({ user, settings }) {
   const { activeTimer } = useTimer();
@@ -36,7 +38,7 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  const { projects, addProject, updateProject } = useProjects();
+  const { projects, addProject, updateProject, deleteProject } = useProjects();
   const { settings, updateSettings } = useSettings();
   
   useReminders(user);
@@ -80,17 +82,19 @@ export default function App() {
     switch (activeTab) {
       case 'Неделя': return <WeekView projects={projects} />;
       case 'Проекты': return <ProjectsTable projects={projects} settings={settings} />;
+      case 'Категории': return <Categories />;
       case 'Месяц': return <MonthView projects={projects} settings={settings} />;
       case 'Отчёт': return <ClientReport projects={projects} />;
-      case 'Настройки': return <Settings settings={settings} updateSettings={updateSettings} projects={projects} addProject={addProject} updateProject={updateProject} />;
+      case 'Настройки': return <Settings settings={settings} updateSettings={updateSettings} projects={projects} addProject={addProject} updateProject={updateProject} deleteProject={deleteProject} />;
       default: return <WeekView projects={projects} />;
     }
   };
 
-  const tabs = ['Неделя', 'Проекты', 'Месяц', 'Отчёт', 'Настройки'];
+  const tabs = ['Неделя', 'Проекты', 'Категории', 'Месяц', 'Отчёт', 'Настройки'];
 
   return (
     <TimerProvider>
+      <Toaster position="bottom-right" richColors />
       <TelegramNotifier user={user} settings={settings} />
       <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
         <header className="bg-white border-b border-slate-200 sticky top-0 z-10">

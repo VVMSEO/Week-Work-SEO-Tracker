@@ -252,8 +252,18 @@ export default function Settings({ settings, updateSettings, projects, addProjec
                           {project.active ? 'Активен' : 'В архиве'}
                         </button>
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3 text-right space-x-3">
                         <button onClick={() => startEdit(project)} className="text-blue-600 text-sm font-medium hover:underline">Изменить</button>
+                        <button 
+                          onClick={() => {
+                            if (window.confirm(`Вы уверены, что хотите удалить проект "${project.name}"? Это действие нельзя отменить.`)) {
+                              deleteProject(project.id);
+                            }
+                          }} 
+                          className="text-red-600 text-sm font-medium hover:underline"
+                        >
+                          Удалить
+                        </button>
                       </td>
                     </>
                   )}

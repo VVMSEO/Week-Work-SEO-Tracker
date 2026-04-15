@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTimeLogsByWeek, useTimeLogsByMonth } from '../hooks/useTimeLogs';
 import { calcPlannedMinutes, formatMinutes, getMonday } from '../utils/timeCalc';
+import { AlertTriangle } from 'lucide-react';
 
 export default function ProjectsTable({ projects, settings }) {
   const [weekStart] = useState(getMonday(new Date().toISOString().split('T')[0]));
@@ -44,18 +45,43 @@ export default function ProjectsTable({ projects, settings }) {
               const diffWeek = plannedWeekMin - factWeekMin;
               const diffMonth = plannedMonthMin - factMonthMin;
 
+              const isWeekOverrun = diffWeek < 0;
+              const isMonthOverrun = diffMonth < 0;
+              const isAnyOverrun = isWeekOverrun || isMonthOverrun;
+
               return (
-                <tr key={project.id} className="hover:bg-slate-50">
-                  <td className="px-6 py-4 whitespace-nowrap font-medium text-slate-900">{project.name}</td>
+                <tr key={project.id} className={`hover:bg-slate-50 transition-colors ${isAnyOverrun ? 'bg-red-50/40' : ''}`}>
+                  <td className="px-6 py-4 whitespace-nowrap font-medium text-slate-900">
+                    <div className="flex items-center gap-2">
+                      {project.name}
+                      {isAnyOverrun && (
+                        <AlertTriangle className="w-4 h-4 text-red-500" title="Превышение плана (перерасход)" />
+                      )}
+                    </div>
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-slate-500">{project.budget}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-slate-500">{formatMinutes(plannedWeekMin)}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-slate-500">{formatMinutes(factWeekMin)}</td>
-                  <td className={`px-6 py-4 whitespace-nowrap font-medium ${diffWeek >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className={isWeekOverrun ? 'text-red-600 font-bold' : 'text-slate-500'}>
+                      {formatMinutes(factWeekMin)}
+                    </div>
+                    {plannedWeekMin > 0 && (
+                      <div className="w-full min-w-[80px] max-w-[120px] bg-slate-200 rounded-full h-1.5 mt-2 overflow-hidden" title={`${Math.round((factWeekMin / plannedWeekMin) * 100)}% использовано`}>
+                        <div 
+                          className={`h-1.5 rounded-full transition-all duration-500 ${isWeekOverrun ? 'bg-red-500' : 'bg-blue-500'}`} 
+                          style={{ width: `${Math.min(100, (factWeekMin / plannedWeekMin) * 100)}%` }}
+                        ></div>
+                      </div>
+                    )}
+                  </td>
+                  <td className={`px-6 py-4 whitespace-nowrap font-medium ${diffWeek >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-100 text-red-800'}`}>
                     {formatMinutes(Math.abs(diffWeek))} {diffWeek < 0 ? 'перерасход' : ''}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-slate-500">{formatMinutes(factMonthMin)}</td>
+                  <td className={`px-6 py-4 whitespace-nowrap ${isMonthOverrun ? 'text-red-600 font-bold' : 'text-slate-500'}`}>
+                    {formatMinutes(factMonthMin)}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-slate-500">{formatMinutes(plannedMonthMin)}</td>
-                  <td className={`px-6 py-4 whitespace-nowrap font-medium ${diffMonth >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                  <td className={`px-6 py-4 whitespace-nowrap font-medium ${diffMonth >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-100 text-red-800'}`}>
                     {formatMinutes(Math.abs(diffMonth))} {diffMonth < 0 ? 'перерасход' : ''}
                   </td>
                 </tr>

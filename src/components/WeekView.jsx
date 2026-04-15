@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTimeLogsByWeek, addLog, deleteLog, updateLog } from '../hooks/useTimeLogs';
 import { useSettings } from '../hooks/useSettings';
+import { useCategories } from '../hooks/useCategories';
 import { useTimer } from '../context/TimerContext';
 import { getMonday, getPreviousMonday, getNextMonday, getWeekRange, formatMinutes, calcPlannedMinutes } from '../utils/timeCalc';
 import { distributeProjects } from '../services/aiService';
@@ -45,6 +46,7 @@ const LiveTimerDisplay = ({ activeTimer }) => {
 export default function WeekView({ projects }) {
   const [weekStart, setWeekStart] = useState(getMonday(new Date().toISOString().split('T')[0]));
   const { logs, loading } = useTimeLogsByWeek(weekStart);
+  const { categories } = useCategories();
   const { settings } = useSettings();
   const { activeTimer, startTimer, stopTimer } = useTimer();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -256,76 +258,135 @@ export default function WeekView({ projects }) {
               </div>
               
               {dayLogs.length > 0 && (
-                <div className="divide-y divide-slate-100">
-                  {dayLogs.map(log => {
-                    const isTimerActive = activeTimer?.logId === log.id;
-                    
-                    return (
-                      <div key={log.id} className={`p-4 flex flex-col sm:flex-row sm:items-start gap-4 transition-colors ${isTimerActive ? 'bg-red-50/50' : ''}`}>
-                        <div className="w-full sm:w-48 shrink-0">
-                          <div className="font-medium text-slate-800">{log.projectName}</div>
-                          <div className="text-sm text-slate-500 mt-1">
-                            <div>План: {formatMinutes(log.minutes)}</div>
-                            {isTimerActive ? (
-                              <LiveTimerDisplay activeTimer={activeTimer} />
-                            ) : (
-                              <div className="text-blue-600 font-medium mt-0.5">
-                                Факт: {formatMinutes(log.workedMinutes || 0)}
+                <>
+                  {/* Daily Timeline View */}
+                  <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50">
+                    <div className="flex h-3 w-full rounded-full overflow-hidden bg-slate-200">
+                      {dayLogs.map((log, idx) => {
+                        const fact = (log.workedMinutes || 0) + getLiveElapsedMinutes(log.id);
+                        const width = dayTotalFact > 0 ? (fact / dayTotalFact) * 100 : 0;
+                        const colors = ['bg-blue-500', 'bg-indigo-500', 'bg-violet-500', 'bg-purple-500', 'bg-fuchsia-500', 'bg-rose-500'];
+                        return fact > 0 ? (
+                          <div 
+                            key={log.id} 
+                            style={{ width: `${width}%` }} 
+                            className={`${colors[idx % colors.length]} border-r border-white/30 last:border-0 transition-all duration-500`} 
+                            title={`${log.task} (${formatMinutes(fact)})`} 
+                          />
+                        ) : null;
+                      })}
+                    </div>
+                    <div className="flex justify-between text-xs text-slate-500 mt-1.5">
+                      <span>Таймлайн (Факт)</span>
+                      <span>{formatMinutes(dayTotalFact)}</span>
+                    </div>
+                  </div>
+
+                  <div className="divide-y divide-slate-100">
+                    {dayLogs.map(log => {
+                      const isTimerActive = activeTimer?.logId === log.id;
+                      const currentFact = (log.workedMinutes || 0) + getLiveElapsedMinutes(log.id);
+                      const progress = log.minutes > 0 ? Math.round((currentFact / log.minutes) * 100) : 0;
+                      const isOvertime = log.minutes > 0 && currentFact > log.minutes;
+                      
+                      return (
+                        <div key={log.id} className={`p-4 flex flex-col sm:flex-row sm:items-start gap-4 transition-colors relative ${isTimerActive ? 'bg-red-50/50 border border-red-200 rounded-lg' : ''}`}>
+                          {isTimerActive && (
+                            <div className="absolute top-4 right-4 flex items-center gap-2">
+                              <span className="relative flex h-3 w-3">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                              </span>
+                              <span className="text-xs font-medium text-red-600 uppercase tracking-wider">В процессе</span>
+                            </div>
+                          )}
+                          <div className="w-full sm:w-56 shrink-0">
+                            <div className="font-medium text-slate-800 pr-24 sm:pr-0">{log.projectName}</div>
+                            {log.categoryId && (
+                              <div className="text-xs text-slate-500 mb-1">
+                                {categories?.find(c => c.id === log.categoryId)?.name}
                               </div>
                             )}
-                          </div>
-                        </div>
-                        <div className="flex-1">
-                          <div className="text-slate-700 mb-1">{log.task}</div>
-                          {log.result && <div className="text-sm text-slate-500 mb-2">Результат: {log.result}</div>}
-                          <div className="flex items-center justify-between">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(log.status)}`}>
-                              {log.status}
-                            </span>
-                            <div className="flex space-x-1">
+                            <div className="text-sm text-slate-500 mt-1">
+                              <div>План: {formatMinutes(log.minutes)}</div>
                               {isTimerActive ? (
-                                <button
-                                  onClick={stopTimer}
-                                  className="p-1 text-red-600 hover:bg-red-100 rounded"
-                                  title="Остановить таймер"
-                                >
-                                  <Square className="w-4 h-4" />
-                                </button>
+                                <LiveTimerDisplay activeTimer={activeTimer} />
                               ) : (
-                                <button
-                                  onClick={() => startTimer(log)}
-                                  className="p-1 text-green-600 hover:bg-green-100 rounded"
-                                  title="Запустить таймер"
-                                >
-                                  <Play className="w-4 h-4" />
-                                </button>
+                                <div className="text-blue-600 font-medium mt-0.5">
+                                  Факт: {formatMinutes(log.workedMinutes || 0)}
+                                </div>
                               )}
-                              <button
-                                onClick={() => handleEditSession(log)}
-                                className="p-1 text-slate-400 hover:text-blue-600 rounded"
-                                title="Редактировать запись"
-                              >
-                                <Edit2 className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => {
-                                  if (window.confirm('Удалить эту запись?')) {
-                                    if (activeTimer?.logId === log.id) stopTimer();
-                                    deleteLog(log.id);
-                                  }
-                                }}
-                                className="p-1 text-slate-400 hover:text-red-600 rounded"
-                                title="Удалить запись"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                              
+                              {/* Progress Bar */}
+                              {log.minutes > 0 && (
+                                <div className="mt-3">
+                                  <div className="flex justify-between text-xs mb-1">
+                                    <span className={isOvertime ? 'text-red-500 font-medium' : 'text-slate-500'}>
+                                      {progress}% {isOvertime && '(Переработка)'}
+                                    </span>
+                                  </div>
+                                  <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                                    <div 
+                                      className={`h-1.5 rounded-full transition-all duration-500 ${isOvertime ? 'bg-red-500' : 'bg-blue-500'}`} 
+                                      style={{ width: `${Math.min(100, progress)}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-slate-700 mb-1">{log.task}</div>
+                            {log.result && <div className="text-sm text-slate-500 mb-2">Результат: {log.result}</div>}
+                            <div className="flex items-center justify-between mt-2">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(log.status)}`}>
+                                {log.status}
+                              </span>
+                              <div className="flex space-x-1">
+                                {isTimerActive ? (
+                                  <button
+                                    onClick={stopTimer}
+                                    className="p-1 text-red-600 hover:bg-red-100 rounded"
+                                    title="Остановить таймер"
+                                  >
+                                    <Square className="w-4 h-4" />
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => startTimer(log)}
+                                    className="p-1 text-green-600 hover:bg-green-100 rounded"
+                                    title="Запустить таймер"
+                                  >
+                                    <Play className="w-4 h-4" />
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => handleEditSession(log)}
+                                  className="p-1 text-slate-400 hover:text-blue-600 rounded"
+                                  title="Редактировать запись"
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (window.confirm('Удалить эту запись?')) {
+                                      if (activeTimer?.logId === log.id) stopTimer();
+                                      deleteLog(log.id);
+                                    }
+                                  }}
+                                  className="p-1 text-slate-400 hover:text-red-600 rounded"
+                                  title="Удалить запись"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                </>
               )}
               
               <div className="bg-slate-50 px-4 py-2 border-t border-slate-200 text-right text-sm text-slate-600 font-medium">
@@ -353,6 +414,7 @@ export default function WeekView({ projects }) {
         <AddSessionModal 
           dayDate={selectedDate}
           projects={projects.filter(p => p.active)}
+          categories={categories}
           onSave={handleSaveSession}
           onClose={() => {
             setIsModalOpen(false);

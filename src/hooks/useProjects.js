@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 
 export function useProjects() {
@@ -45,5 +45,10 @@ export function useProjects() {
     await updateDoc(doc(db, 'projects', id), data);
   };
 
-  return { projects, loading, addProject, updateProject };
+  const deleteProject = async (id) => {
+    if (!auth.currentUser) return;
+    await deleteDoc(doc(db, 'projects', id));
+  };
+
+  return { projects, loading, addProject, updateProject, deleteProject };
 }

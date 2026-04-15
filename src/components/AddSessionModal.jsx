@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { getMonday } from '../utils/timeCalc';
 
-export default function AddSessionModal({ dayDate, projects, onSave, onClose, initialData = null }) {
+export default function AddSessionModal({ dayDate, projects, categories = [], onSave, onClose, initialData = null }) {
   const [projectId, setProjectId] = useState(initialData?.projectId || '');
+  const [categoryId, setCategoryId] = useState(initialData?.categoryId || '');
   const [date, setDate] = useState(initialData?.date || dayDate || new Date().toISOString().split('T')[0]);
   const [hours, setHours] = useState(initialData ? Math.floor(initialData.minutes / 60) : 0);
   const [minutes, setMinutes] = useState(initialData ? initialData.minutes % 60 : 0);
@@ -34,6 +35,7 @@ export default function AddSessionModal({ dayDate, projects, onSave, onClose, in
     
     const dataToSave = {
       projectId,
+      categoryId,
       projectName: project.name,
       date,
       weekStart: getMonday(date),
@@ -68,6 +70,20 @@ export default function AddSessionModal({ dayDate, projects, onSave, onClose, in
               <option value="">Выберите проект...</option>
               {projects.map(p => (
                 <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Категория (опционально)</label>
+            <select 
+              value={categoryId} 
+              onChange={e => setCategoryId(e.target.value)}
+              className="w-full border border-slate-300 rounded p-2"
+            >
+              <option value="">Без категории</option>
+              {categories.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
           </div>
