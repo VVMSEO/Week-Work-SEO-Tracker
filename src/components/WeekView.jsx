@@ -5,7 +5,7 @@ import { useCategories } from '../hooks/useCategories';
 import { useTimer } from '../context/TimerContext';
 import { getMonday, getPreviousMonday, getNextMonday, getWeekRange, formatMinutes, calcPlannedMinutes } from '../utils/timeCalc';
 import { distributeProjects } from '../services/aiService';
-import { Wand2, Loader2, Trash2, Edit2, Play, Square } from 'lucide-react';
+import { Wand2, Loader2, Trash2, Edit2, Play, Square, CalendarDays } from 'lucide-react';
 import AddSessionModal from './AddSessionModal';
 
 const DAYS = [
@@ -53,6 +53,8 @@ export default function WeekView({ projects }) {
   const [selectedDate, setSelectedDate] = useState('');
   const [isPlanning, setIsPlanning] = useState(false);
   const [editingLog, setEditingLog] = useState(null);
+  const [movingLog, setMovingLog] = useState(null);
+  const [moveDate, setMoveDate] = useState('');
 
   const handlePrevWeek = () => setWeekStart(getPreviousMonday(weekStart));
   const handleNextWeek = () => setWeekStart(getNextMonday(weekStart));
@@ -361,6 +363,16 @@ export default function WeekView({ projects }) {
                                   </button>
                                 )}
                                 <button
+                                  onClick={() => {
+                                    setMovingLog(log);
+                                    setMoveDate(log.date);
+                                  }}
+                                  className="p-1 text-slate-400 hover:text-indigo-600 rounded"
+                                  title="Перенести на другой день"
+                                >
+                                  <CalendarDays className="w-4 h-4" />
+                                </button>
+                                <button
                                   onClick={() => handleEditSession(log)}
                                   className="p-1 text-slate-400 hover:text-blue-600 rounded"
                                   title="Редактировать запись"
@@ -409,6 +421,40 @@ export default function WeekView({ projects }) {
           <span className="opacity-80">Факт:</span> <span className="font-bold ml-2 text-blue-300">{formatMinutes(totalFactMinutes)}</span>
         </div>
       </div>
+
+      {movingLog && (
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
+            <h3 className="text-lg font-bold text-slate-800 mb-4">Перенести задачу</h3>
+            <p className="text-sm text-slate-600 mb-4">Выберите новую дату для задачи <strong>{movingLog.projectName}</strong>.</p>
+            <input 
+              type="date" 
+              value={moveDate}
+              onChange={e => setMoveDate(e.target.value)}
+              className="w-full border border-slate-300 rounded-lg p-2 mb-6"
+            />
+            <div className="flex justify-end space-x-3">
+              <button 
+                onClick={() => setMovingLog(null)}
+                className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium"
+              >
+                Отмена
+              </button>
+              <button 
+                onClick={async () => {
+                  if (moveDate && moveDate !== movingLog.date) {
+                    await updateLog(movingLog.id, { date: moveDate });
+                  }
+                  setMovingLog(null);
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700"
+              >
+                Перенести
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isModalOpen && (
         <AddSessionModal 

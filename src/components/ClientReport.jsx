@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { useTimeLogsByWeek } from '../hooks/useTimeLogs';
+import { useTimeLogsByWeek, updateLog } from '../hooks/useTimeLogs';
 import { getMonday, getPreviousMonday, getNextMonday, getWeekRange } from '../utils/timeCalc';
 import { improveText } from '../services/aiService';
-import { Wand2, Loader2 } from 'lucide-react';
+import { Wand2, Loader2, Check } from 'lucide-react';
 
 export default function ClientReport({ projects }) {
   const [weekStart, setWeekStart] = useState(getMonday(new Date().toISOString().split('T')[0]));
   const { logs, loading } = useTimeLogsByWeek(weekStart);
   const [reportData, setReportData] = useState({});
   const [improvingFields, setImprovingFields] = useState({});
+  const [savingLogs, setSavingLogs] = useState({});
 
   const handlePrevWeek = () => setWeekStart(getPreviousMonday(weekStart));
   const handleNextWeek = () => setWeekStart(getNextMonday(weekStart));
@@ -23,12 +24,16 @@ export default function ClientReport({ projects }) {
       if (!grouped[log.projectId]) {
         grouped[log.projectId] = {
           projectName: log.projectName,
-          done: [],
+          doneLogs: [],
           next: '',
           fromClient: ''
         };
       }
-      grouped[log.projectId].done.push(log.task + (log.result ? ` (${log.result})` : ''));
+      grouped[log.projectId].doneLogs.push({
+        id: log.id,
+        task: log.task,
+        result: log.result || ''
+      });
     });
 
     // Merge with existing state to preserve typed text
@@ -38,7 +43,12 @@ export default function ClientReport({ projects }) {
         if (!merged[pid]) {
           merged[pid] = grouped[pid];
         } else {
-          merged[pid].done = grouped[pid].done; // Update done list
+          // Update doneLogs but keep local edits if they exist
+          const newDoneLogs = grouped[pid].doneLogs.map(newLog => {
+            const existingLog = merged[pid].doneLogs?.find(l => l.id === newLog.id);
+            return existingLog ? { ...newLog, result: existingLog.result } : newLog;
+          });
+          merged[pid].doneLogs = newDoneLogs;
         }
       });
       return merged;
@@ -55,6 +65,25 @@ export default function ClientReport({ projects }) {
     }));
   };
 
+  const handleLogResultChange = (projectId, logId, newResult) => {
+    setReportData(prev => ({
+      ...prev,
+      [projectId]: {
+        ...prev[projectId],
+        doneLogs: prev[projectId].doneLogs.map(l => l.id === logId ? { ...l, result: newResult } : l)
+      }
+    }));
+  };
+
+  const saveLogResult = async (logId, result) => {
+    setSavingLogs(prev => ({ ...prev, [logId]: 'saving' }));
+    await updateLog(logId, { result });
+    setSavingLogs(prev => ({ ...prev, [logId]: 'saved' }));
+    setTimeout(() => {
+      setSavingLogs(prev => ({ ...prev, [logId]: null }));
+    }, 2000);
+  };
+
   const handleImprove = async (projectId, field, text) => {
     if (!text.trim()) return;
     const fieldKey = `${projectId}_${field}`;
@@ -68,9 +97,9 @@ export default function ClientReport({ projects }) {
   const handleCopy = () => {
     let md = `| Проект | Что сделано | Что дальше | От клиента |\n|---|---|---|---|\n`;
     Object.values(reportData).forEach(data => {
-      if (data.done.length === 0 && !data.next && !data.fromClient) return;
+      if ((!data.doneLogs || data.doneLogs.length === 0) && !data.next && !data.fromClient) return;
       
-      const doneText = data.done.map(d => `• ${d}`).join('<br>');
+      const doneText = data.doneLogs.map(d => `• ${d.task}${d.result ? ` (${d.result})` : ''}`).join('<br>');
       const nextText = data.next.replace(/\n/g, '<br>');
       const clientText = data.fromClient.replace(/\n/g, '<br>');
       
@@ -108,29 +137,47 @@ export default function ClientReport({ projects }) {
               <thead className="bg-slate-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-1/4">Проект</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-1/4">Что сделано</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-1/4">Что дальше</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-1/4">От клиента</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-1/3">Что сделано (Задачи и результаты)</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-1/5">Что дальше</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-1/5">От клиента</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-200">
                 {projectIds.map(pid => {
                   const data = reportData[pid];
-                  if (data.done.length === 0 && !data.next && !data.fromClient) return null;
+                  if ((!data.doneLogs || data.doneLogs.length === 0) && !data.next && !data.fromClient) return null;
                   
                   return (
                     <tr key={pid} className="align-top">
                       <td className="px-6 py-4 font-medium text-slate-900">{data.projectName}</td>
                       <td className="px-6 py-4 text-sm text-slate-700">
-                        <ul className="list-disc pl-4 space-y-1">
-                          {data.done.map((task, idx) => <li key={idx}>{task}</li>)}
-                        </ul>
+                        <div className="space-y-3">
+                          {data.doneLogs?.map(log => (
+                            <div key={log.id} className="bg-slate-50 p-2 rounded border border-slate-100">
+                              <div className="font-medium text-slate-800 mb-1 flex items-start">
+                                <span className="text-slate-400 mr-2">•</span>
+                                <span>{log.task}</span>
+                              </div>
+                              <div className="relative mt-1 ml-4">
+                                <textarea
+                                  className="w-full border border-slate-200 rounded p-1.5 text-xs bg-white focus:ring-1 focus:ring-blue-500 outline-none resize-none"
+                                  rows="2"
+                                  placeholder="Результат выполнения..."
+                                  value={log.result}
+                                  onChange={e => handleLogResultChange(pid, log.id, e.target.value)}
+                                  onBlur={() => saveLogResult(log.id, log.result)}
+                                />
+                                {savingLogs[log.id] === 'saving' && <Loader2 className="w-3 h-3 animate-spin absolute bottom-2 right-2 text-blue-500" />}
+                                {savingLogs[log.id] === 'saved' && <Check className="w-3 h-3 absolute bottom-2 right-2 text-green-500" />}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="relative">
+                        <div className="relative h-full">
                           <textarea 
-                            className="w-full border border-slate-300 rounded p-2 text-sm pr-8"
-                            rows="4"
+                            className="w-full h-full min-h-[100px] border border-slate-300 rounded p-2 text-sm pr-8 resize-y"
                             value={data.next}
                             onChange={e => handleTextChange(pid, 'next', e.target.value)}
                             placeholder="Планы на следующую неделю..."
@@ -148,10 +195,9 @@ export default function ClientReport({ projects }) {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="relative">
+                        <div className="relative h-full">
                           <textarea 
-                            className="w-full border border-slate-300 rounded p-2 text-sm pr-8"
-                            rows="4"
+                            className="w-full h-full min-h-[100px] border border-slate-300 rounded p-2 text-sm pr-8 resize-y"
                             value={data.fromClient}
                             onChange={e => handleTextChange(pid, 'fromClient', e.target.value)}
                             placeholder="Что нужно от клиента..."
