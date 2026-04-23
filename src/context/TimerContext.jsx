@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { updateLog } from '../hooks/useTimeLogs';
+import { formatMinutes } from '../utils/timeCalc';
 import { Bell, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { sendTelegramMessage } from '../services/telegramService';
@@ -125,6 +126,7 @@ export const TimerProvider = ({ children }) => {
       task: log.task,
       notified: false
     });
+    notifyTelegram(`▶️ Запущен таймер:\n\nПроект: ${log.projectName}\nЗадача: ${log.task}`);
   };
 
   const stopTimer = async () => {
@@ -135,6 +137,7 @@ export const TimerProvider = ({ children }) => {
     
     try {
       await updateLog(activeTimer.logId, { workedMinutes: newWorked, status: 'В работе' });
+      notifyTelegram(`⏹ Таймер остановлен:\n\nПроект: ${activeTimer.projectName}\nЗадача: ${activeTimer.task}\nОтработано (итого): ${formatMinutes(newWorked)}`);
     } catch (e) {
       console.error("Failed to update log on timer stop", e);
     }

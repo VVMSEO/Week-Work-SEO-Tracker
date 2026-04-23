@@ -16,9 +16,9 @@ import ClientReport from './components/ClientReport';
 import Settings from './components/Settings';
 import Categories from './components/Categories';
 
-function TelegramNotifier({ user, settings }) {
+function TelegramNotifier({ user, settings, projects }) {
   const { activeTimer } = useTimer();
-  useTelegramReminders(user, settings, activeTimer);
+  useTelegramReminders(user, settings, activeTimer, projects);
   return null;
 }
 
@@ -95,7 +95,7 @@ export default function App() {
   return (
     <TimerProvider>
       <Toaster position="bottom-right" richColors />
-      <TelegramNotifier user={user} settings={settings} />
+      <TelegramNotifier user={user} settings={settings} projects={projects} />
       <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
         <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
           <div className="max-w-6xl mx-auto px-4">
