@@ -1,5 +1,5 @@
 const API_URL = "https://routerai.ru/api/v1/chat/completions";
-const API_KEY = "sk-YZjmB_SuF7khId64RojYIaiZ6QxLdTmF";
+const API_KEY = "sk-qbf6ACgy2tmghGMBdty2uA3lWSHY98w7";
 
 export async function distributeProjects(projectsToPlan) {
   const systemPrompt = `Ты помощник SEO-специалиста. Твоя задача — распределить переданные проекты по 5 рабочим дням недели (от 1 до 5, где 1=Понедельник, 5=Пятница).
@@ -29,7 +29,7 @@ export async function distributeProjects(projectsToPlan) {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "google/gemini-3.1-pro-preview",
+        model: "anthropic/claude-sonnet-4.6",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }
@@ -64,7 +64,7 @@ export async function improveText(text) {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "google/gemini-3.1-pro-preview",
+        model: "anthropic/claude-sonnet-4.6",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: text }
