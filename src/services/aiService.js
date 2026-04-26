@@ -42,11 +42,19 @@ export async function distributeProjects(projectsToPlan) {
     const data = await response.json();
     let content = data.choices[0].message.content;
     
-    // Очищаем ответ от маркдауна, если ИИ его добавил
-    content = content.replace(/```json/g, '').replace(/```/g, '').trim();
-    return JSON.parse(content);
+    try {
+      // Очищаем ответ от возможных текстов до или после JSON
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        content = jsonMatch[0];
+      }
+      return JSON.parse(content);
+    } catch (parseError) {
+      console.error("AI Planning Parse Error:", parseError, "Raw response:", data.choices[0].message.content);
+      return null;
+    }
   } catch (error) {
-    console.error("AI Planning Error:", error);
+    console.error("AI Planning Global Error:", error);
     return null;
   }
 }

@@ -55,6 +55,11 @@ export default function WeekView({ projects }) {
   const [editingLog, setEditingLog] = useState(null);
   const [movingLog, setMovingLog] = useState(null);
   const [moveDate, setMoveDate] = useState('');
+  
+  // Drag and Drop state
+  const [draggedItem, setDraggedItem] = useState(null);
+  const [dragOverItem, setDragOverItem] = useState(null); // { id, pos: 'top'|'bottom' }
+  const [dragActiveDay, setDragActiveDay] = useState(null);
 
   const handlePrevWeek = () => setWeekStart(getPreviousMonday(weekStart));
   const handleNextWeek = () => setWeekStart(getNextMonday(weekStart));
@@ -191,6 +196,75 @@ export default function WeekView({ projects }) {
     return () => clearInterval(interval);
   }, [activeTimer]);
 
+  const handleDragStart = (e, log) => {
+    if (activeTimer?.logId === log.id) {
+       e.preventDefault();
+       return;
+    }
+    setDraggedItem(log);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', log.id);
+    setTimeout(() => { e.target.style.opacity = '0.5'; }, 0);
+  };
+
+  const handleDragEnd = (e) => {
+    e.target.style.opacity = '1';
+    setDraggedItem(null);
+    setDragOverItem(null);
+    setDragActiveDay(null);
+  };
+
+  const handleDragOverLog = (e, log) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const mid = rect.top + rect.height / 2;
+    setDragOverItem({ id: log.id, pos: e.clientY < mid ? 'top' : 'bottom' });
+  };
+
+  const handleDropLog = async (e, targetLog, dateStr) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActiveDay(null);
+    const dropPos = dragOverItem?.pos || 'top';
+    setDragOverItem(null);
+
+    if (!draggedItem || draggedItem.id === targetLog.id) return;
+
+    let targetDateLogs = logs.filter(l => l.date === dateStr).sort((a, b) => (a.order || 0) - (b.order || 0));
+    targetDateLogs = targetDateLogs.filter(l => l.id !== draggedItem.id);
+
+    const targetIdx = targetDateLogs.findIndex(l => l.id === targetLog.id);
+    const insertIdx = dropPos === 'top' ? targetIdx : targetIdx + 1;
+    
+    targetDateLogs.splice(insertIdx, 0, draggedItem);
+
+    targetDateLogs.forEach((l, idx) => {
+        if (l.order !== idx || l.date !== dateStr) {
+            updateLog(l.id, { order: idx, date: dateStr, month: dateStr.slice(0, 7) });
+        }
+    });
+  };
+
+  const handleDropDay = async (e, dateStr) => {
+    e.preventDefault();
+    setDragActiveDay(null);
+    setDragOverItem(null);
+
+    if (!draggedItem) return;
+
+    let targetDateLogs = logs.filter(l => l.date === dateStr).sort((a, b) => (a.order || 0) - (b.order || 0));
+    // If dropped on the same day not on a specific item, move it to the end
+    targetDateLogs = targetDateLogs.filter(l => l.id !== draggedItem.id);
+    targetDateLogs.push(draggedItem);
+
+    targetDateLogs.forEach((l, idx) => {
+        if (l.order !== idx || l.date !== dateStr) {
+            updateLog(l.id, { order: idx, date: dateStr, month: dateStr.slice(0, 7) });
+        }
+    });
+  };
+
   if (loading) return <div className="p-4 text-slate-600">Загрузка...</div>;
 
   const getLiveElapsedMinutes = (logId) => {
@@ -243,12 +317,23 @@ export default function WeekView({ projects }) {
           dayDate.setDate(dayDate.getDate() + offset);
           const dateStr = dayDate.toISOString().split('T')[0];
           
-          const dayLogs = logs.filter(l => l.date === dateStr);
+          const dayLogs = logs.filter(l => l.date === dateStr).sort((a, b) => (a.order || 0) - (b.order || 0));
           const dayTotalPlan = dayLogs.reduce((sum, l) => sum + l.minutes, 0);
           const dayTotalFact = dayLogs.reduce((sum, l) => sum + (l.workedMinutes || 0) + getLiveElapsedMinutes(l.id), 0);
 
           return (
-            <div key={day.id} className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+            <div 
+              key={day.id} 
+              className={`bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden transition-colors ${dragActiveDay === day.id ? 'ring-2 ring-blue-400 bg-blue-50/10' : ''}`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                if (draggedItem && draggedItem.date !== dateStr) {
+                  setDragActiveDay(day.id);
+                }
+              }}
+              onDragLeave={() => setDragActiveDay(null)}
+              onDrop={(e) => handleDropDay(e, dateStr)}
+            >
               <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
                 <h3 className="font-semibold text-slate-800">{day.name} <span className="text-slate-500 text-sm font-normal ml-2">{dateStr}</span></h3>
                 <button 
@@ -292,7 +377,15 @@ export default function WeekView({ projects }) {
                       const isOvertime = log.minutes > 0 && currentFact > log.minutes;
                       
                       return (
-                        <div key={log.id} className={`p-4 flex flex-col sm:flex-row sm:items-start gap-4 transition-colors relative ${isTimerActive ? 'bg-red-50/50 border border-red-200 rounded-lg' : ''}`}>
+                        <div 
+                          key={log.id} 
+                          draggable={!isTimerActive}
+                          onDragStart={(e) => handleDragStart(e, log)}
+                          onDragEnd={handleDragEnd}
+                          onDragOver={(e) => handleDragOverLog(e, log)}
+                          onDrop={(e) => handleDropLog(e, log, dateStr)}
+                          className={`p-4 flex flex-col sm:flex-row sm:items-start gap-4 transition-colors relative ${!isTimerActive ? 'cursor-grab active:cursor-grabbing hover:bg-slate-50' : ''} ${isTimerActive ? 'bg-red-50/50 border border-red-200 rounded-lg' : ''} ${dragOverItem?.id === log.id ? (dragOverItem.pos === 'top' ? 'border-t-2 border-t-blue-500' : 'border-b-2 border-b-blue-500') : ''}`}
+                        >
                           {isTimerActive && (
                             <div className="absolute top-4 right-4 flex items-center gap-2">
                               <span className="relative flex h-3 w-3">
