@@ -1,164 +1,137 @@
 import React, { useState, useEffect } from 'react';
-import { auth, signInWithGoogle, logOut } from './firebase';
-import { onAuthStateChanged } from 'firebase/auth';
-import { useProjects } from './hooks/useProjects';
+import { auth, signInWithGoogle, db } from './firebase';
+import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { useSettings } from './hooks/useSettings';
-import { useReminders } from './hooks/useReminders';
+import { useProjects } from './hooks/useProjects';
 import { useTelegramReminders } from './hooks/useTelegramReminders';
-import { TimerProvider, useTimer } from './context/TimerContext';
-import { Bell, BellOff } from 'lucide-react';
-import { Toaster } from 'sonner';
-
+import { TimerProvider } from './context/TimerContext';
 import WeekView from './components/WeekView';
-import ProjectsTable from './components/ProjectsTable';
 import MonthView from './components/MonthView';
-import ClientReport from './components/ClientReport';
+import ProjectsTable from './components/ProjectsTable';
 import Settings from './components/Settings';
 import Categories from './components/Categories';
-
-function TelegramNotifier({ user, settings, projects }) {
-  const { activeTimer } = useTimer();
-  useTelegramReminders(user, settings, activeTimer, projects);
-  return null;
-}
+import ClientReport from './components/ClientReport';
+import { CalendarDays, Calendar, LayoutList, Settings as SettingsIcon, LogOut, Tags, FileBarChart } from 'lucide-react';
 
 export default function App() {
   const [user, setUser] = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('Неделя');
-  const [notificationsEnabled, setNotificationsEnabled] = useState(
-    'Notification' in window && Notification.permission === 'granted'
-  );
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('Трекер');
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
-      setAuthLoading(false);
+      setLoading(false);
     });
-    return () => unsubscribe();
+    return unsubscribe;
   }, []);
 
-  const { projects, addProject, updateProject, deleteProject } = useProjects();
-  const { settings, updateSettings } = useSettings();
-  
-  useReminders(user);
-
-  const requestNotificationPermission = async () => {
-    if (!('Notification' in window)) {
-      alert('Ваш браузер не поддерживает уведомления.');
-      return;
-    }
-    const permission = await Notification.requestPermission();
-    if (permission === 'granted') {
-      setNotificationsEnabled(true);
-      alert('Уведомления включены! Мы напомним вам о невыполненных задачах на сегодня.');
-    } else {
-      alert('Вы запретили уведомления. Вы можете включить их в настройках браузера.');
-    }
-  };
-
-  if (authLoading) {
-    return <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-600">Загрузка...</div>;
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-500">Загрузка...</div>;
   }
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-xl shadow-lg text-center max-w-md w-full">
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">SEO Tracker</h1>
-          <p className="text-slate-500 mb-8">Учет времени и планирование для SEO-проектов</p>
-          <button 
-            onClick={signInWithGoogle}
-            className="w-full bg-blue-600 text-white font-medium py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Войти через Google
-          </button>
-        </div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
+        <h1 className="text-3xl font-bold mb-6 text-slate-800">SEO Planner</h1>
+        <button 
+          onClick={signInWithGoogle}
+          className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition"
+        >
+          Войти через Google
+        </button>
       </div>
     );
   }
 
-  const renderTab = () => {
+  return <MainApp user={user} activeTab={activeTab} setActiveTab={setActiveTab} />;
+}
+
+function MainApp({ user, activeTab, setActiveTab }) {
+  const { settings, updateSettings, loading: settingsLoading } = useSettings();
+  const { projects, addProject, updateProject, deleteProject, loading: projectsLoading } = useProjects();
+  
+  // Initialize Telegram Reminders
+  useTelegramReminders(user, settings, null, projects);
+
+  const renderContent = () => {
     switch (activeTab) {
-      case 'Неделя': return <WeekView projects={projects} />;
-      case 'Проекты': return <ProjectsTable projects={projects} settings={settings} />;
-      case 'Категории': return <Categories />;
-      case 'Месяц': return <MonthView projects={projects} settings={settings} />;
-      case 'Отчёт': return <ClientReport projects={projects} />;
-      case 'Настройки': return <Settings settings={settings} updateSettings={updateSettings} projects={projects} addProject={addProject} updateProject={updateProject} deleteProject={deleteProject} />;
-      default: return <WeekView projects={projects} />;
+      case 'Трекер':
+        return <WeekView projects={projects} settings={settings} />;
+      case 'Проекты':
+        return <ProjectsTable projects={projects} settings={settings} />;
+      case 'Месяц':
+        return <MonthView projects={projects} settings={settings} />;
+      case 'Клиенты':
+        return <ClientReport projects={projects} settings={settings} />;
+      case 'Категории':
+        return <Categories />;
+      case 'Настройки':
+        return (
+          <Settings 
+            settings={settings} 
+            updateSettings={updateSettings} 
+            projects={projects} 
+            addProject={addProject} 
+            updateProject={updateProject} 
+            deleteProject={deleteProject} 
+          />
+        );
+      default:
+        return <WeekView projects={projects} settings={settings} />;
     }
   };
 
-  const tabs = ['Неделя', 'Проекты', 'Категории', 'Месяц', 'Отчёт', 'Настройки'];
+  const tabs = [
+    { name: 'Трекер', icon: <CalendarDays size={20} /> },
+    { name: 'Месяц', icon: <Calendar size={20} /> },
+    { name: 'Проекты', icon: <LayoutList size={20} /> },
+    { name: 'Клиенты', icon: <FileBarChart size={20} /> },
+    { name: 'Категории', icon: <Tags size={20} /> },
+    { name: 'Настройки', icon: <SettingsIcon size={20} /> }
+  ];
+
+  if (settingsLoading || projectsLoading) {
+    return <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-500">Загрузка данных...</div>;
+  }
 
   return (
     <TimerProvider>
-      <Toaster position="bottom-right" richColors />
-      <TelegramNotifier user={user} settings={settings} projects={projects} />
-      <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
-        <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
-          <div className="max-w-6xl mx-auto px-4">
-            <div className="flex justify-between items-center h-16">
-              <div className="flex items-center space-x-8">
-                <h1 className="text-xl font-bold text-blue-600">SEO Tracker</h1>
-                <nav className="hidden md:flex space-x-1">
-                  {tabs.map(tab => (
-                    <button
-                      key={tab}
-                      onClick={() => setActiveTab(tab)}
-                      className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                        activeTab === tab 
-                          ? 'text-blue-600 bg-blue-50' 
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                      }`}
-                    >
-                      {tab}
-                    </button>
-                  ))}
-                </nav>
-              </div>
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={requestNotificationPermission}
-                  className={`p-2 rounded-full transition-colors ${notificationsEnabled ? 'text-blue-600 bg-blue-50 hover:bg-blue-100' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}
-                  title={notificationsEnabled ? 'Браузерные уведомления включены' : 'Включить браузерные уведомления'}
-                >
-                  {notificationsEnabled ? <Bell className="w-5 h-5" /> : <BellOff className="w-5 h-5" />}
-                </button>
-                <div className="flex items-center space-x-2">
-                  {user.photoURL && <img src={user.photoURL} alt="Avatar" className="w-8 h-8 rounded-full" referrerPolicy="no-referrer" />}
-                  <span className="text-sm font-medium text-slate-700 hidden sm:block">{user.displayName}</span>
-                </div>
-                <button 
-                  onClick={logOut}
-                  className="text-sm text-slate-500 hover:text-slate-700"
-                >
-                  Выйти
-                </button>
-              </div>
-            </div>
-            {/* Mobile nav */}
-            <div className="md:hidden flex overflow-x-auto py-2 space-x-1 border-t border-slate-100">
-              {tabs.map(tab => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`whitespace-nowrap px-3 py-1.5 rounded-md text-sm font-medium ${
-                    activeTab === tab 
-                      ? 'text-blue-600 bg-blue-50' 
-                      : 'text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
+      <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
+        {/* Sidebar */}
+        <aside className="w-full md:w-64 bg-slate-900 text-slate-300 md:min-h-screen p-4 flex flex-col">
+          <div className="text-white text-xl font-bold px-2 py-4 border-b border-slate-700 mb-4">
+            SEO Planner
           </div>
-        </header>
+          
+          <nav className="flex-1 space-y-1">
+            {tabs.map(tab => (
+              <button
+                key={tab.name}
+                onClick={() => setActiveTab(tab.name)}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                  activeTab === tab.name 
+                    ? 'bg-blue-600 text-white' 
+                    : 'hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                {tab.icon}
+                <span className="font-medium">{tab.name}</span>
+              </button>
+            ))}
+          </nav>
+          
+          <div className="mt-auto pt-4 border-t border-slate-700 flex items-center justify-between px-2">
+            <span className="text-sm truncate w-32" title={user.email}>{user.email}</span>
+            <button onClick={() => signOut(auth)} className="text-slate-400 hover:text-white transition" title="Выйти">
+              <LogOut size={18} />
+            </button>
+          </div>
+        </aside>
 
-        <main className="py-6">
-          {renderTab()}
+        {/* Main Content */}
+        <main className="flex-1 p-4 md:p-8 overflow-x-hidden">
+          {renderContent()}
         </main>
       </div>
     </TimerProvider>

@@ -1,20 +1,19 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# SEO Planner - Firestore Security Rules
 
-# Run and deploy your AI Studio app
+To ensure your application is secure, you need to use the following Firestore Security Rules.
+Since you authenticate users via Google Sign-In and isolate their data into paths like `users/{userId}/*`, the best practice is to ensure users can only access their own subcollections.
 
-This contains everything you need to run your app locally.
+Here are the optimal Rules for your database:
 
-View your app in AI Studio: https://ai.studio/apps/0f10524f-81f8-4adf-a29f-3642e9a72923
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
+```
 
-## Run Locally
-
-**Prerequisites:**  Node.js
-
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+(The rules requested in your prompt were globally open `allow read, write: if request.auth != null;`, which is slightly less secure than scoped-to-user-ID rules, but structurally they behave similarly).
