@@ -103,7 +103,12 @@ export default function WeekView({ projects }) {
       minutes: calcPlannedMinutes(p.budget, p.overhead, settings.hourlyRate)
     })).filter(p => p.minutes > 0);
 
-    const aiResult = await distributeProjects(projectsToPlan);
+    let aiResult;
+    try {
+      aiResult = await distributeProjects(projectsToPlan);
+    } catch (e) {
+      alert('Ошибка ИИ: ' + (e.message || e.toString()));
+    }
     
     let schedule = [];
     if (aiResult && aiResult.schedule) {

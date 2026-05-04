@@ -89,9 +89,14 @@ export default function ClientReport({ projects }) {
     const fieldKey = `${projectId}_${field}`;
     
     setImprovingFields(prev => ({ ...prev, [fieldKey]: true }));
-    const improved = await improveText(text);
-    handleTextChange(projectId, field, improved);
-    setImprovingFields(prev => ({ ...prev, [fieldKey]: false }));
+    try {
+      const improved = await improveText(text);
+      handleTextChange(projectId, field, improved);
+    } catch (e) {
+      alert('Ошибка ИИ: ' + (e.message || e.toString()));
+    } finally {
+      setImprovingFields(prev => ({ ...prev, [fieldKey]: false }));
+    }
   };
 
   const handleCopy = () => {

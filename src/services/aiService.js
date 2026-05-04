@@ -6,9 +6,13 @@ function getAiClient() {
     const key = process.env.GEMINI_API_KEY;
     if (!key) {
       console.warn("GEMINI_API_KEY is not set. AI features may not work or will use default proxy.");
-      // optionally fallback or just let the SDK throw
     }
-    _aiInstance = new GoogleGenAI({ apiKey: key || 'dummy-key-to-prevent-startup-crash' });
+    
+    if (!key || key === 'undefined' || key === 'null') {
+       throw new Error("API ключ не настроен. Пожалуйста, добавьте GEMINI_API_KEY в разделе Secrets.");
+    }
+
+    _aiInstance = new GoogleGenAI({ apiKey: key });
   }
   return _aiInstance;
 }
@@ -65,7 +69,7 @@ export async function distributeProjects(projectsToPlan) {
     return data;
   } catch (error) {
     console.error("AI Planning Global Error:", error);
-    return null;
+    throw error;
   }
 }
 
@@ -87,7 +91,7 @@ export async function improveText(text) {
     return response.text.trim();
   } catch (error) {
     console.error("AI Text Improvement Error:", error);
-    return text;
+    throw error;
   }
 }
 
