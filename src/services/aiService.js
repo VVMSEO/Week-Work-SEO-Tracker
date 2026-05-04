@@ -1,6 +1,17 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+let _aiInstance = null;
+function getAiClient() {
+  if (!_aiInstance) {
+    const key = process.env.GEMINI_API_KEY;
+    if (!key) {
+      console.warn("GEMINI_API_KEY is not set. AI features may not work or will use default proxy.");
+      // optionally fallback or just let the SDK throw
+    }
+    _aiInstance = new GoogleGenAI({ apiKey: key || 'dummy-key-to-prevent-startup-crash' });
+  }
+  return _aiInstance;
+}
 
 export async function distributeProjects(projectsToPlan) {
   const systemPrompt = `Ты помощник SEO-специалиста. Твоя задача — распределить переданные проекты по 5 рабочим дням недели (от 1 до 5, где 1=Понедельник, 5=Пятница).
@@ -23,8 +34,9 @@ export async function distributeProjects(projectsToPlan) {
   const userPrompt = JSON.stringify(projectsToPlan);
 
   try {
+    const ai = getAiClient();
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       contents: userPrompt,
       config: {
         systemInstruction: systemPrompt,
@@ -63,8 +75,9 @@ export async function improveText(text) {
   const systemPrompt = `Ты профессиональный аккаунт-менеджер в SEO. Перепиши черновые заметки специалиста в вежливый, понятный и грамотный деловой текст для клиента. Сохрани всю суть, но сделай текст презентабельным. Пиши на русском языке. Верни только готовый текст без вводных слов.`;
 
   try {
+    const ai = getAiClient();
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       contents: text,
       config: {
         systemInstruction: systemPrompt,
