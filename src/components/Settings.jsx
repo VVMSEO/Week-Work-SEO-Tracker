@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { calcPlannedMinutes, formatMinutes } from '../utils/timeCalc';
 
-export default function Settings({ settings, updateSettings, projects, addProject, updateProject }) {
+export default function Settings({ settings, updateSettings, projects, addProject, updateProject, deleteProject }) {
   const [hourlyRate, setHourlyRate] = useState(settings?.hourlyRate || 0);
   const [tgToken, setTgToken] = useState(settings?.tgToken || '');
   const [tgChatId, setTgChatId] = useState(settings?.tgChatId || '');
