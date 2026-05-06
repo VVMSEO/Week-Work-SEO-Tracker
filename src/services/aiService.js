@@ -1,5 +1,5 @@
 const API_URL = "https://routerai.ru/api/v1/chat/completions";
-const API_KEY = "sk-qbf6ACgy2tmghGMBdty2uA3lWSHY98w7";
+const API_KEY = "sk-idWLIk8WBHJJiwn-Y2oyMNdW0ckjsfIa";
 
 export async function distributeProjects(projectsToPlan) {
   const systemPrompt = `Ты помощник SEO-специалиста. Твоя задача — распределить переданные проекты по 5 рабочим дням недели (от 1 до 5, где 1=Понедельник, 5=Пятница).
@@ -39,7 +39,12 @@ export async function distributeProjects(projectsToPlan) {
 
     if (!response.ok) {
       const errText = await response.text();
-      throw new Error(`Network response was not ok: ${response.status} - ${errText}`);
+      let errorMessage = `Network error: ${response.status} - ${errText}`;
+      try {
+        const errObj = JSON.parse(errText);
+        if (errObj.error) errorMessage = errObj.error;
+      } catch (e) {}
+      throw new Error(errorMessage);
     }
 
     const jsonResponse = await response.json();
@@ -83,7 +88,12 @@ export async function improveText(text) {
 
     if (!response.ok) {
       const errText = await response.text();
-      throw new Error(`Network response was not ok: ${response.status} - ${errText}`);
+      let errorMessage = `Network error: ${response.status} - ${errText}`;
+      try {
+        const errObj = JSON.parse(errText);
+        if (errObj.error) errorMessage = errObj.error;
+      } catch (e) {}
+      throw new Error(errorMessage);
     }
 
     const jsonResponse = await response.json();
